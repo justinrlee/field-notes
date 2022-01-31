@@ -1,3 +1,11 @@
+# Hello
+This is a very MVP multi-threaded synchronous producer using librdkafka in C
+
+It has hardcoded settings.  And no parameters.  And no error handling.  And is generally very poorly written.
+
+## Setup
+
+
 Setting up build env (Ubuntu 20.04):
 
 Build stuff
@@ -71,4 +79,10 @@ EOF
 sudo kafka-storage format -t $(kafka-storage random-uuid) -c /etc/kafka/server.properties
 
 sudo systemctl start confluent-server
+```
+
+## Build
+
+```bash
+gcc -lpthread -lrdkafka rdkafka_sync.c -o rdkafka_sync
 ```
