@@ -140,3 +140,38 @@ real	0m5.159s
 user	0m9.586s
 sys	0m6.413s
 ```
+
+Verbose output:
+```
+$ time ./rdkafka_sync -M 16 -T 4 -l 0.1 -S 4096 -a 1 -v1
+Writing 16 4096-byte messages using 4 threads (4 per thread)
+Topic test for bootstrap server localhost:9092
+linger.ms = 0.1
+acks = 1
+Initiating thread 0
+Thread 0 initiated successfully: 139648992917248
+Initiating thread 1
+Starting thread 139648992917248
+Thread 1 initiated successfully: 139648915470080
+Initiating thread 2
+Thread 2 initiated successfully: 139648781252352
+Initiating thread 3
+Starting thread 139648781252352
+Starting thread 139648915470080
+Thread 3 initiated successfully: 139648907077376
+All threads initiated
+Starting thread 139648907077376
+Thread 139648781252352 finished
+Thread 139648907077376 finished
+Thread 139648915470080 finished
+Thread 139648992917248 finished
+Thread 139648992917248 joined
+Thread 139648915470080 joined
+Thread 139648781252352 joined
+Thread 139648907077376 joined
+All threads completed
+
+real	0m0.012s
+user	0m0.023s
+sys	0m0.003s
+```
