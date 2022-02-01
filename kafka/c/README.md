@@ -84,5 +84,59 @@ sudo systemctl start confluent-server
 ## Build
 
 ```bash
-gcc -lpthread -lrdkafka rdkafka_sync.c -o rdkafka_sync
+gcc rdkafka_sync.c -lpthread -lrdkafka -o rdkafka_sync
+```
+
+## Run
+
+Options:
+
+* `-a`: "acks" setting
+* `-l`: "linger.ms" setting
+* `-b`: bootstrap server
+* `-t`: topic to produce to
+* `-M`: number of messages to produce
+* `-T`: number of threads to use
+* `-S`: size of each message (in bytes)
+* `-v`: verbosity level (0, 1, 2 or 3)
+
+
+Example:
+```
+./rdkafka_sync -M 64000 -T 4 -l 0.1 -S 4096 -a 1
+Writing 64000 4096-byte messages using 4 threads (16000 per thread)
+Topic test for bootstrap server localhost:9092
+linger.ms = 0.1
+acks = 1
+All threads started
+All threads completed
+```
+
+Examples, with bash `time` wrapper (note that time includes thread startup time and malloc time):
+```
+time ./rdkafka_sync -M 64000 -T 4 -l 0.1 -S 4096 -a 1
+Writing 64000 4096-byte messages using 4 threads (16000 per thread)
+Topic test for bootstrap server localhost:9092
+linger.ms = 0.1
+acks = 1
+All threads started
+All threads completed
+
+real	0m18.944s
+user	0m36.317s
+sys	0m24.578s
+```
+
+```
+time ./rdkafka_sync -M 64000 -T 16 -l 0.1 -S 4096 -a 1
+Writing 64000 4096-byte messages using 16 threads (4000 per thread)
+Topic test for bootstrap server localhost:9092
+linger.ms = 0.1
+acks = 1
+All threads started
+All threads completed
+
+real	0m5.159s
+user	0m9.586s
+sys	0m6.413s
 ```
