@@ -16,7 +16,6 @@ const int UNACKED = -123;
 typedef struct _kafka_t {
   rd_kafka_t *rk;
   rd_kafka_conf_t *rk_conf;
-
   rd_kafka_topic_t *rkt;
 
   int messages;
@@ -88,6 +87,7 @@ static void* processor(void *args) {
 
     // This makes it synchronous; wait for the callback to get called (identified by the fact that p_m is no longer -123);
     while (*p_m == UNACKED) rd_kafka_poll(k->rk, 0);
+    // rd_kafka_poll(k->rk, 0);
     
     if (k->verbosity > 2)
       printf("T %lu:%i ack received\n", pthread_self(), i);
@@ -107,12 +107,11 @@ int main(int argc, char **argv)
   int err; // Used for error handling
   processor_config_t *k = malloc(sizeof(processor_config_t));
   srand(0);
-  int i = 0;
+  int t = 0;
   int opt;
 
   int max_threads = 4;
   int total_messages = 16000;
-  // float linger_ms = "0.1";
   char *linger_ms = "0.1";
   char *bootstrap_servers = "localhost:9092";
   char *acks = "1";
@@ -179,23 +178,24 @@ int main(int argc, char **argv)
 
   initialize_rk(k, topic_name);
 
-  while (i < max_threads) {
+  t = 0;
+  while (t < max_threads) {
     if (k->verbosity > 0)
-      printf("Creating thread\n");
+      printf("Initiating thread %i\n", t);
 
-    err = pthread_create(&(threads[i]), NULL, &processor, k);
+    err = pthread_create(&(threads[t]), NULL, &processor, k);
     if (err != 0)
       printf("\ncan't create thread :[%s]", strerror(err));
     else if (k->verbosity > 0)
-      printf("Thread created successfully\n");
-    i++;
+      printf("Thread %i initiated successfully: %lu\n", t, threads[t]);
+    t++;
   }
-  printf("All threads started\n");
+  printf("All threads initiated\n");
 
-  for(int t = 0; t < max_threads; t++) {
+  for(t = 0; t < max_threads; t++) {
     pthread_join(threads[t], NULL);
     if (k->verbosity > 0)
-      printf("Thread joined\n");
+      printf("Thread %lu joined\n", threads[t]);
   }
 
   rd_kafka_flush(k->rk, 30000);
