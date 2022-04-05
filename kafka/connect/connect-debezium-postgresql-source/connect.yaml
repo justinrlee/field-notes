@@ -1,0 +1,60 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+  namespace: confluent
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server-connect:7.0.1
+    init: confluentinc/confluent-init-container:2.2.0-1
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        locationType: confluentHub
+        confluentHub:
+          - name: debezium-connector-postgresql
+            owner: debezium
+            version: 1.8.1
+  keyConverterType: io.confluent.connect.avro.AvroConverter
+  valueConverterType: io.confluent.connect.avro.AvroConverter
+  dependencies:
+    kafka:
+      bootstrapEndpoint: pkc-lzvrd.us-west4.gcp.confluent.cloud:9092
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: ccloud-credentials
+      tls:
+        enabled: true
+        ignoreTrustStoreConfig: true 
+    schemaRegistry:
+      url: https://psrc-gk071.us-east-2.aws.confluent.cloud
+      authentication:
+        type: basic
+        basic:
+          secretRef: ccloud-sr-credentials
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: pg-crd
+  namespace: confluent
+spec:
+  class: "io.debezium.connector.postgresql.PostgresConnector"
+  taskMax: 1
+  connectClusterRef:
+    name: connect
+  configs:
+    "database.hostname": "10.0.1.37"
+    "database.port": "5432"
+    "database.user": "myuser"
+    "database.password": "mypassword"
+    "database.dbname" : "postgres"
+    "database.server.name": "asgard"
+    "transforms": "addTopicSuffix"
+    "transforms.addTopicSuffix.type": "org.apache.kafka.connect.transforms.RegexRouter"
+    "transforms.addTopicSuffix.regex": "(.*)"
+    "transforms.addTopicSuffix.replacement": "$1-x-raw"
