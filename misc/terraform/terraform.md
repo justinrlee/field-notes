@@ -405,12 +405,12 @@ module "eks" {
   cluster_endpoint_public_access  = true
 
   vpc_id     = aws_vpc.lab.id
-  subnet_ids = ["subnet-abcde012", "subnet-bcde012a", "subnet-fghi345a"]
+  subnet_ids = [for subnet in aws_subnet.lab: subnet.id]
 
   # EKS Managed Node Group(s)
   eks_managed_node_group_defaults = {
     disk_size      = 50
-    instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
+    instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large", "t3.large"]
   }
 
   eks_managed_node_groups = {
@@ -421,7 +421,7 @@ module "eks" {
       desired_size = 1
 
       instance_types = ["t3.large"]
-      capacity_type  = "SPOT"
+      # capacity_type  = "SPOT"
     }
   }
 
