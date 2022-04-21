@@ -19,6 +19,7 @@
 package io.justinrlee.flink;
 
 import java.util.Properties;
+import java.util.UUID;
 
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -51,7 +52,8 @@ public class KafkaHelloWorld {
 		env.getConfig().setGlobalJobParameters(params);
 
     Properties properties = new Properties();
-    properties.put("group.id", "flink-hw");
+    properties.put("group.id", UUID.randomUUID().toString());
+    properties.put("auto.offset.reset", "earliest");
     properties.put("bootstrap.servers", "pkc-lzvrd.us-west4.gcp.confluent.cloud:9092");
     properties.put("ssl.endpoint.identification.algorithm", "https");
     properties.put("security.protocol", "SASL_SSL");
