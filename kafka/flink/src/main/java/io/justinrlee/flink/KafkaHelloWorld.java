@@ -54,11 +54,13 @@ public class KafkaHelloWorld {
     Properties properties = new Properties();
     properties.put("group.id", UUID.randomUUID().toString());
     properties.put("auto.offset.reset", "earliest");
-    properties.put("bootstrap.servers", "pkc-lzvrd.us-west4.gcp.confluent.cloud:9092");
+    properties.put("bootstrap.servers", "x.y.z:9093");
     properties.put("ssl.endpoint.identification.algorithm", "https");
+    properties.put("ssl.truststore.location", "ssl/truststore.jks");
+    properties.put("ssl.truststore.password", "confluent");
     properties.put("security.protocol", "SASL_SSL");
     properties.put("sasl.mechanism", "PLAIN");
-    properties.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"xxx\" password=\"yyy\";");
+    properties.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"professor\" password=\"professor\";");
 
     FlinkKafkaConsumer010<String> kafka = new FlinkKafkaConsumer010<>("flink", new SimpleStringSchema(), properties);
 

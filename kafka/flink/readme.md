@@ -1,3 +1,12 @@
+Based on this:
+
+```
+mvn archetype:generate                               \
+      -DarchetypeGroupId=org.apache.flink              \
+      -DarchetypeArtifactId=flink-quickstart-java      \
+      -DarchetypeVersion=1.9.3
+```
+
 build
 ```bash
 mvn package
