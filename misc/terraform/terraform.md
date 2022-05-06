@@ -564,14 +564,17 @@ This must be init-ed, and then applied:
 
 ```
 terraform init
-
 ```
 
 ```
 terraform apply
 ```
 
+Make sure you delete everything when you're done!
+
 # EKS Module
+
+Exercise left to the reader:
 
 `module-eks.tf`
 ```
