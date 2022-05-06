@@ -1,34 +1,53 @@
+# Introduction to Terraform (with AWS)
+
+This is primarily intended as a teaching tool; it should introduce good(ish) behaviors around authenticating to AWS and doing Terraform stuff.
+
+It's really only built for Mac.  Sorry.
+
+I assume you have some familiarity with the terminal, and also know how to use a text editor.
 
 # Prereqs
-Assumption: Homebrew installed
+Install the AWS CLI
 
-Install:
-* gimme-aws-creds 
+```bash
+curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+sudo installer -pkg AWSCLIV2.pkg -target /
+```
+
+Install Homebrew: https://brew.sh/
+
+Install Terraform
     
-    ```bash
-    brew install gimme-aws-creds
-    ````
+```bash
+brew tap hashicorp/tap
+brew install hashicorp/tap/terraform
+brew update
+brew upgrade hashicorp/tap/terraform
+```
 
-* terraform
+Install `gimme-aws-creds`
     
-    ```bash
-    brew tap hashicorp/tap
-    brew install hashicorp/tap/terraform
-    brew update
-    brew upgrade hashicorp/tap/terraform
-    ```
+```bash
+brew install gimme-aws-creds
+````
 
-* AWS CLI: https://docs.aws.amazon.com/cli/v1/userguide/install-macos.html (or equivalent)
+_If you already have aws creds stored on your laptop, back them up_:
+
+```
+if [[ -f ~/.aws/credentials ]];
+then
+sed -i.bak 's/default/default_old/g' ~/.aws/credentials
+fi
+```
 
 
-Set up gimme-aws-creds
+Configure gimme-aws-creds
+```
+tee ~/.okta_aws_login_config <<-EOF
 
-`~/.okta_aws_login_config`
-
-```conf
 [DEFAULT]
 # Set your Okta username here or in the OKTA_USERNAME environment variable.
-okta_username = 
+okta_username = ${USER}@confluent.io
 
 # Your prefered MFA method:
 #  * push                - Okta Verify or DUO app
@@ -42,30 +61,46 @@ aws_rolename = all
 
 # Required settings
 okta_org_url = https://confluent.okta.com
-app_url = 
+app_url = https://confluent.okta.com/home/amazon_aws/0oa1l6l54gWFvmDEO357/272
 okta_auth_server = 
 client_id = 
 gimme_creds_server = appurl
 aws_appname = 
 write_aws_creds = True
-cred_profile = default # Change this
+cred_profile = default
 resolve_aws_alias = True
 include_path = False
 remember_device = True
 aws_default_duration = 3600
 device_token = 
 output_format = 
+EOF
 ```
 
+Register your laptop
 ```bash
 gimme-aws-creds --action-register-device
+```
 
+Wait at least 30 seconds for a new Okta token, then generate creds:
+```
 gimme-aws-creds
+```
+
+Validate that you have credentials:
+```
+aws sts get-caller-identity
 ```
 
 # Terraform infra
 
 Create a directory to work in (some working directory that isn't completely ephemeral)
+
+In this directory, make these two files:
+* `providers.tf`
+* `variables.tf`
+
+Update 'owner' in `terraform.tfvars` with your own name.
 
 `providers.tf`
 ```tf
@@ -74,8 +109,6 @@ provider "aws" {
 }
 ```
 
-Init
-
 `variables.tf`
 ```tf
 variable "region" {
@@ -83,14 +116,38 @@ variable "region" {
 }
 
 variable "owner" {
-  default = "justin"
+  default = "somebody"
 }
 ```
 
+`terraform.tfvars`
+```tf
+owner = "JustinLee"
+```
+
+Initialize terraform in this directory
+```
+terraform init
+```
+
+This will download the `aws` Terraform provider and prepare the directory.
+
+Terraform objects are defined in `.tf` files; when you run Terraform actions, all `.tf` files in the directory are combined into one big dependency graph ('terraform template'), and applied.  Valid Terraform objects include:
+
+* `provider`: A particular resource provider in which resources are managed (with a set of configs); for example, AWS
+* `resource`: A resource that can be managed by TF
+* `local`: basically, an internal variable
+* `variable`: an _input variable_ to a Terraform template
+* `output`: an _output value` from a Terraform template
+* `module`: A reference to another Terraform template that will be used by this template
+
+There's also a default input variable file `terraform.tfvars`; this populates variables
+
 # VPC
 
-`vpc.tf`
+Create a VPC with Terraform.  Create this file:
 
+`vpc.tf`
 ```tf
 
 resource "aws_vpc" "lab" {
@@ -117,9 +174,58 @@ resource "aws_route" "lab_default_route" {
 }
 ```
 
-^ Create VPC (also, IGW and route)
+Run `terraform plan`; this will generate a plan that is effectively 'here is what would be changed if you ran terraform
+
+Run `terraform apply`; this will create the resources (it will prompt for confirmation)
+
+Log into the AWS console and navigate to us-east-1 region; you should see a created VPC, with an Internet Gateway and a default route
+
+Take a look at the files in `.terraform`.  Also, take a look at `terraform.tfstate`
+
+Run `terraform apply -var owner=test`; (and accept the confirmation); see how your resources change.  Notes:
+
+* We have a **string** variable `owner` with a default value of `somebody`
+* Every time we have `var.owner` in one of the Terraform templates, it replaces it with the value.
+* In the default terraform variable file, we have owner set to `JustinLee` (or, ideally, your username)
+* You can, at runtime, override variables in one of two ways:
+  * With a `-var x=y` flag to override a single variable
+  * With a `-var-file <x>.tfvars` to override the input file
+
+Run `terraform apply` again to revert the override.  Notes:
+
+* Terraform will generally try to update resources to match the desired state; it will generally only destroy resources if they cannot be changed inline.
+* Terraform uses HCL (Hashicorp configuration language)
+* The definition of a resource generally looks like this:
+
+```tf
+resource "resource_type" "resource_name" {
+  # These are regular arguments
+  string_argument = "hello"
+  numerical_argument = 15.5
+  boolean_argument = true
+  null_argument = null
+
+  # This is a map/object argument
+  map_argument = { 
+    string_argument = "foo"
+    numerical_argument = 123
+  }
+
+  # This is a list/tuple argument (think array; note that unlike JSON, trailing commas are okay)
+  list_argument = [
+    "hello",
+    "goodbye",
+    "foo",
+  ]
+}
+```
+
+* Each resource managed by Terraform has a resource identifier.  In our case, we have an AWS VPC with an (internal to the TF template) Terraform resource id of `aws_vpc.lab`.  This resource has arguments (inputs) and attributes (outputs) (you can see the reference for the `aws_vpc` resource type here: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc)
+* Attributes from one resource can be used in other resources; for example, once Terraform creates a VPC, we then uses the attribute `id` from that VPC (fully qualified identifier of `aws_vpc.lab.id` to create an Internet Gateway in that VPC, which is referenced in the arguments for the IGW.
 
 # Add subnets
+
+Let's add some subnets to our VPC.  Create this file:
 
 `subnets.tf`
 ```
@@ -208,9 +314,11 @@ resource "aws_subnet" "lab_az6" {
 }
 ```
 
-^ Create Subnets
+Run `terraform apply`.  It should create a bunch of subnets (log into the AWS console to see this)
 
 # Redo subnets, with a loop:
+
+In the above, we explciitly defined 6 subnets in our AWS VPC.  Now let's do a for loop to create them as a single resource.  Update `subnets.tf` to look like this:
 
 `subnets.tf`
 ```tf
@@ -218,27 +326,27 @@ resource "aws_subnet" "lab_az6" {
 variable "subnet_mappings" {
   default = {
     "az1" = {
-      "subnet" = 1,
+      "subnet" = 11,
       "az"     = "1d",
     },
     "az2" = {
-      "subnet" = 2,
+      "subnet" = 12,
       "az"     = "1a",
     },
     "az3" = {
-      "subnet" = 3,
+      "subnet" = 13,
       "az"     = "1e",
     },
     "az4" = {
-      "subnet" = 4,
+      "subnet" = 14,
       "az"     = "1b",
     },
     "az5" = {
-      "subnet" = 5,
+      "subnet" = 15,
       "az"     = "1f",
     },
     "az6" = {
-      "subnet" = 6,
+      "subnet" = 16,
       "az"     = "1c",
     },
   }
@@ -263,9 +371,13 @@ resource "aws_subnet" "lab" {
 
 This uses `for_each` (https://www.terraform.io/language/meta-arguments/for_each) cause it allows for dictionaries, but there's also a `count` meta-argument (https://www.terraform.io/language/meta-arguments/count)
 
-^ Looped Terraform for Subnets
+Note that this will actually remove the old subnets and create new ones, for two reasons:
+* We have different CIDR blocks (you can't change the CIDR block on an AWS subnet)
+* We have different Terraform resource identifiers (e.g. we changed from `aws_subnet.lab_az1` to `aws_subnet.lab["az1"]`)
 
 # Add tags and variables
+
+Update your `providers.tf` with this:
 
 `providers.tf`
 ```tf
@@ -278,12 +390,14 @@ provider "aws" {
       "confluent-infosec"
     ]
   }
+
+  tags = local.tf_tags
 }
 ```
 
-^ Add tags to ignore
-
 Terraform locals: (https://www.terraform.io/language/values/locals) (like a variable, but not variable)
+
+Create a new terraform file with a set of locals to define tags for all resources managed by your TF template:
 
 `local-labels.tf`
 ```tf
@@ -298,16 +412,7 @@ locals {
 }
 ```
 
-Update all tags with something like this (https://www.terraform.io/language/functions/merge):
-
-```tf
-  tags = merge(
-    {
-      Name = "something"
-    },
-    local.tf_tags
-  )
-```
+Update these files, as well:
 
 `variables.tf`
 ```tf
@@ -325,10 +430,10 @@ variable "date_updated" {
 
 `terraform.tfvars`
 ```tf
-date_updated = "2022-04-12"
+date_updated = "2022-05-05"
 ```
 
-^ Add tags to all resources (exercise for reader)
+Do a `terraform apply`
 
  # EC2 Instance
 
@@ -352,6 +457,8 @@ variable "key" {
 
 }
 ```
+
+Create `ec2.tf`:
 
 ```tf
 resource "aws_instance" "build" {
