@@ -141,61 +141,10 @@ Terraform objects are defined in `.tf` files; when you run Terraform actions, al
 * `output`: an _output value` from a Terraform template
 * `module`: A reference to another Terraform template that will be used by this template
 
-There's also a default input variable file `terraform.tfvars`; this populates variables
 
-# VPC
+Terraform uses HCL (Hashicorp configuration language).
 
-Create a VPC with Terraform.  Create this file:
-
-`vpc.tf`
-```tf
-
-resource "aws_vpc" "lab" {
-  cidr_block = "10.0.0.0/16"
-
-  tags = {
-    Name = "${var.owner}-Managed"
-  }
-}
-
-resource "aws_internet_gateway" "lab" {
-  vpc_id = aws_vpc.lab.id
-
-  tags = {
-    Name = "${var.owner}-Managed"
-  }
-}
-
-# Attach route to route table: `aws_vpc.justin.default_route_table_id`
-resource "aws_route" "lab_default_route" {
-  route_table_id         = aws_vpc.lab.default_route_table_id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.lab.id
-}
-```
-
-Run `terraform plan`; this will generate a plan that is effectively 'here is what would be changed if you ran terraform
-
-Run `terraform apply`; this will create the resources (it will prompt for confirmation)
-
-Log into the AWS console and navigate to us-east-1 region; you should see a created VPC, with an Internet Gateway and a default route
-
-Take a look at the files in `.terraform`.  Also, take a look at `terraform.tfstate`
-
-Run `terraform apply -var owner=test`; (and accept the confirmation); see how your resources change.  Notes:
-
-* We have a **string** variable `owner` with a default value of `somebody`
-* Every time we have `var.owner` in one of the Terraform templates, it replaces it with the value.
-* In the default terraform variable file, we have owner set to `JustinLee` (or, ideally, your username)
-* You can, at runtime, override variables in one of two ways:
-  * With a `-var x=y` flag to override a single variable
-  * With a `-var-file <x>.tfvars` to override the input file
-
-Run `terraform apply` again to revert the override.  Notes:
-
-* Terraform will generally try to update resources to match the desired state; it will generally only destroy resources if they cannot be changed inline.
-* Terraform uses HCL (Hashicorp configuration language)
-* The definition of a resource generally looks like this:
+This is the general structure of a resource:
 
 ```tf
 resource "resource_type" "resource_name" {
@@ -220,8 +169,109 @@ resource "resource_type" "resource_name" {
 }
 ```
 
+There's also a default input variable file `terraform.tfvars`; this populates variables
+
+# VPC
+
+Create a VPC with Terraform.  Create this file:
+
+`vpc.tf`
+```tf
+
+resource "aws_vpc" "lab" {
+  cidr_block = "10.0.0.0/16"
+
+  enable_dns_support = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name = "${var.owner}-Managed"
+  }
+}
+
+resource "aws_internet_gateway" "lab" {
+  vpc_id = aws_vpc.lab.id
+
+  tags = {
+    Name = "${var.owner}-Managed"
+  }
+}
+
+# Attach route to route table: `aws_vpc.justin.default_route_table_id`
+resource "aws_route" "lab_default_route" {
+  route_table_id         = aws_vpc.lab.default_route_table_id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.lab.id
+}
+
+output "vpc_id" {
+  value = aws_vpc.lab.id
+}
+```
+
+Run `terraform plan`; this will generate a plan that is effectively 'here is what would be changed if you ran terraform
+
+Run `terraform apply`; this will create the resources (it will prompt for confirmation)
+
+Log into the AWS console and navigate to us-east-1 region; you should see a created VPC, with an Internet Gateway and a default route
+
+Take a look at the files in `.terraform`.  Also, take a look at `terraform.tfstate`
+
+# Experiment with Terraform commands
+
+Apply with a variable (and accept the confirmation)
+
+```
+terraform apply -var owner=test
+```
+
+Look at your resources to see how they've changed
+
+Create a new file:
+
+`custom.tfvars`
+
+```tf
+owner = HelloWorld
+```
+
+Apply with a variable file:
+
+```bash
+terraform apply -var-file custom.tfvars
+```
+
+Apply without overrides:
+
+```bash
+terraform apply
+```
+
+Destroy resources (remember to do this when you're done)
+
+```bash
+terraform destroy
+```
+
+Notes:
+* We have a **string** variable `owner` with a default value of `somebody`
+* Every time we have `var.owner` in one of the Terraform templates, it replaces it with the value.
+* In the default terraform variable file, we have owner set to `JustinLee` (or, ideally, your username)
+* You can, at runtime, override variables in one of two ways:
+  * With a `-var x=y` flag to override a single variable
+  * With a `-var-file <x>.tfvars` to override the input file
+* Terraform will generally try to update resources to match the desired state; it will generally only destroy resources if they cannot be changed inline.
 * Each resource managed by Terraform has a resource identifier.  In our case, we have an AWS VPC with an (internal to the TF template) Terraform resource id of `aws_vpc.lab`.  This resource has arguments (inputs) and attributes (outputs) (you can see the reference for the `aws_vpc` resource type here: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc)
 * Attributes from one resource can be used in other resources; for example, once Terraform creates a VPC, we then uses the attribute `id` from that VPC (fully qualified identifier of `aws_vpc.lab.id` to create an Internet Gateway in that VPC, which is referenced in the arguments for the IGW.
+
+Re-create the resources:
+
+```
+terraform apply
+```
+
+Because we destroyed and re-created the resources, everything is new.
+
 
 # Add subnets
 
@@ -270,55 +320,13 @@ resource "aws_subnet" "lab_az3" {
     Name = "${var.owner}-Managed-az3"
   }
 }
-
-resource "aws_subnet" "lab_az4" {
-  vpc_id = aws_vpc.lab.id
-
-  map_public_ip_on_launch = true
-
-  cidr_block = "10.0.4.0/24"
-
-  availability_zone_id = "use1-az4"
-
-  tags = {
-    Name = "${var.owner}-Managed-az4"
-  }
-}
-
-resource "aws_subnet" "lab_az5" {
-  vpc_id = aws_vpc.lab.id
-
-  map_public_ip_on_launch = true
-
-  cidr_block = "10.0.5.0/24"
-
-  availability_zone_id = "use1-az5"
-
-  tags = {
-    Name = "${var.owner}-Managed-az5"
-  }
-}
-
-resource "aws_subnet" "lab_az6" {
-  vpc_id = aws_vpc.lab.id
-
-  map_public_ip_on_launch = true
-
-  cidr_block = "10.0.6.0/24"
-
-  availability_zone_id = "use1-az6"
-
-  tags = {
-    Name = "${var.owner}-Managed-az6"
-  }
-}
 ```
 
 Run `terraform apply`.  It should create a bunch of subnets (log into the AWS console to see this)
 
 # Redo subnets, with a loop:
 
-In the above, we explciitly defined 6 subnets in our AWS VPC.  Now let's do a for loop to create them as a single resource.  Update `subnets.tf` to look like this:
+In the above, we explciitly defined 3 subnets in our AWS VPC.  Now let's do a for loop to create them as a single resource.  Update `subnets.tf` to look like this:
 
 `subnets.tf`
 ```tf
@@ -388,33 +396,57 @@ provider "aws" {
     key_prefixes = [
       "divvy",
       "confluent-infosec"
+      "ics"
     ]
   }
 
-  tags = local.tf_tags
+  default_tags {
+    tags = local.tf_tags
+  }
 }
-```
 
-Terraform locals: (https://www.terraform.io/language/values/locals) (like a variable, but not variable)
-
-Create a new terraform file with a set of locals to define tags for all resources managed by your TF template:
-
-`local-labels.tf`
-```tf
 locals {
   tf_tags = {
-    "tf_owner"         = "Justin Lee",
-    "tf_owner_email"   = "jlee@confluent.io",
-    "tf_provenance"    = "github.com/justinrlee/private-terraform/aws/${var.region}",
+    "tf_owner"         = "Somebody",
+    "tf_owner_email"   = "somebody@confluent.io",
+    "tf_provenance"    = "github.com/justinrlee/field-notes/misc/terraform",
     "tf_last_modified" = "${var.date_updated}",
-    "Owner"            = "Justin Lee",
+    "Owner"            = "Somebody",
   }
 }
 ```
+
+Replace the values with your own values.
+
+Terraform locals: (https://www.terraform.io/language/values/locals) (like a variable, but not variable)
 
 Update these files, as well:
 
 `variables.tf`
+```tf
+variable "region" {
+  default = "us-east-1"
+}
+
+variable "owner" {
+  default = "somebody"
+}
+
+variable "date_updated" {
+}
+```
+
+Do this.  Notice how it prompts for a value for the variable that's not set.
+
+```
+terraform apply
+```
+
+If you want, specify date_updated in a runtime variable, or put it in your terraform.tfvars.
+
+ # EC2 Instance
+
+Update `variables.tf` to add this:
 ```tf
 variable "region" {
   default = "us-east-1"
@@ -426,22 +458,9 @@ variable "owner" {
 
 variable "date_updated" {
 }
-```
-
-`terraform.tfvars`
-```tf
-date_updated = "2022-05-05"
-```
-
-Do a `terraform apply`
-
- # EC2 Instance
-
-Update `variables.tf` to add this:
-```tf
 
 variable "build_count" {
-  default = 0
+  default = 1
 }
 
 # Ubuntu 20.04 (2022-01-30)
@@ -454,7 +473,7 @@ variable "whitelist_ips" {
 }
 
 variable "key" {
-
+  default = "justin-lab"
 }
 ```
 
@@ -496,11 +515,66 @@ output "build" {
 }
 ```
 
-`terraform apply -var build_count=1`
+Create it:
 
-# Module!  With EKS!
+```bash
+terraform apply
+```
 
+List your resources:
+
+```bash
+terraform state list
+```
+
+Replace a specific resource:
+
+```bash
+terraform apply -replace="aws_instance.build[0]"
+```
+
+Destroy a specific resource:
+
+```bash
+terraform destroy -target="aws_instance.build[0]"
+```
+
+# S3 Module
+
+Terraform also supports modules, which are predefined groups of resources.  For example:
+
+`module-s3.tf`
 ```tf
+module "s3_bucket" {
+  # By default, Terraform pulls from the "Terraform Registry".  For example, this module uses this: https://registry.terraform.io/modules/terraform-aws-modules/s3-bucket/aws/latest?tab=inputs
+  source = "terraform-aws-modules/s3-bucket/aws"
+  # You could also specify this with a github (or other) URL:
+  # source = github.com/terraform-aws-modules/terraform-aws-s3-bucket
+
+  bucket = "tf-se-lab-${replace(lower(var.owner), "/\\s+/", "-")}"
+  acl    = "private"
+
+  versioning = {
+    enabled = true
+  }
+}
+```
+
+This must be init-ed, and then applied:
+
+```
+terraform init
+
+```
+
+```
+terraform apply
+```
+
+# EKS Module
+
+`module-eks.tf`
+```
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 18.0"
