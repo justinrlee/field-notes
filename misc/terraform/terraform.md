@@ -47,7 +47,7 @@ tee ~/.okta_aws_login_config <<-EOF
 
 [DEFAULT]
 # Set your Okta username here or in the OKTA_USERNAME environment variable.
-okta_username = ${USER}@confluent.io
+okta_username = jlee@confluent.io
 
 # Your prefered MFA method:
 #  * push                - Okta Verify or DUO app
@@ -57,7 +57,7 @@ preferred_mfa_type = token:software:totp
 
 # AWS Roles to fetch credentials for. Can be a comma-delimited list of role ARNs
 # or 'all' to fetch all credentials available to you (may be slow).
-aws_rolename = all
+aws_rolename = arn:aws:iam::829250931565:role/ConfluentSEAdminRole
 
 # Required settings
 okta_org_url = https://confluent.okta.com
@@ -76,6 +76,8 @@ device_token =
 output_format = 
 EOF
 ```
+
+*Make sure to replace jlee@confluent.io with your own Okta username/email address.*
 
 Register your laptop
 ```bash
@@ -468,10 +470,6 @@ variable "ami" {
   default = "ami-09e67e426f25ce0d7"
 }
 
-variable "whitelist_ips" {
-  default = [""]
-}
-
 variable "key" {
   default = "justin-lab"
 }
@@ -480,6 +478,24 @@ variable "key" {
 Create `ec2.tf`:
 
 ```tf
+resource "aws_security_group" "allow_ssh" {
+  description = "SSH Inbound"
+  name        = "${var.owner}-allow-ssh"
+  vpc_id      = aws_vpc.lab.id
+
+  ingress = [{
+    description      = null,
+    protocol         = "tcp",
+    cidr_blocks      = ["0.0.0.0/0"],
+    from_port        = 22,
+    to_port          = 22,
+    ipv6_cidr_blocks = null,
+    prefix_list_ids  = null,
+    security_groups  = null,
+    self             = null
+  }]
+}
+
 resource "aws_instance" "build" {
   count = var.build_count
   ami   = var.ami
@@ -491,7 +507,7 @@ resource "aws_instance" "build" {
   iam_instance_profile        = "Justin-Secrets"
   subnet_id                   = aws_subnet.justin[keys(var.subnet_mappings)[count.index]].id
 
-  vpc_security_group_ids = [aws_security_group.all_traffic.id ]
+  vpc_security_group_ids = [ aws_security_group.allow_ssh.id ]
 
   root_block_device {
     volume_size = 40
@@ -537,6 +553,12 @@ Destroy a specific resource:
 
 ```bash
 terraform destroy -target="aws_instance.build[0]"
+```
+
+The bulk of the lab ends here; make sure you delete everything when you're done:
+
+```bash
+terraform destroy
 ```
 
 # S3 Module
