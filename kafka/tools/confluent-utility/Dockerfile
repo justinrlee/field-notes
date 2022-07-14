@@ -10,6 +10,8 @@ RUN apt-get update \
     less \
     ldap-utils \
     dnsutils \
+    jq \
+    yq \
     && rm -rf /var/lib/apt/lists/*
 
 # curl -O http://packages.confluent.io/archive/7.1/confluent-community-7.1.1.tar.gz
