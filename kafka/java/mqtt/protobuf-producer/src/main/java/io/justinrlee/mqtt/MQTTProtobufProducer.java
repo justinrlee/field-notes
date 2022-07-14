@@ -18,7 +18,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Produces protobuf-encoded messages to the local MQTT listener
  *
  */
-public class MqttProtobufProducer 
+public class MQTTProtobufProducer 
 {
     public static void main( String[] args )
     {
