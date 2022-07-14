@@ -23,7 +23,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64 \
     && apt install yq -y \
   && rm -rf /var/lib/apt/lists/*
 
-# curl -O http://packages.confluent.io/archive/7.1/confluent-community-7.2.0.tar.gz
+# curl -O http://packages.confluent.io/archive/7.2/confluent-community-7.2.0.tar.gz
 ADD confluent-community-7.2.0.tar.gz /opt
 
 # curl -O https://s3-us-west-2.amazonaws.com/confluent.cloud/confluent-cli/archives/latest/confluent_latest_linux_amd64.tar.gz
