@@ -97,7 +97,7 @@ public class App
             .peek((k,v) -> logger.info("Observed event: {}", v), Named.as("Raw_Protobuf_Peek"));
 
         rawProtoStream
-            .to(inputTopic + "-protobuf-sr", Produced.with(stringSerde, personProtobufSerde).as("SR_Protobuf_Output"));
+            .to(inputTopic + "-protobuf-sr", Produced.with(stringSerde, personProtobufSerde).withName("Protobuf_SR_Output"));
         
         rawProtoStream
             .map((key, person) ->
@@ -108,9 +108,10 @@ public class App
                         System.out.println("Something went wrong");
                         return null;
                     }
-                }
+                },
+                Named.as("Proto_To_JSON")
             )
-            .to(inputTopic + "-json", Produced.with(stringSerde, stringSerde));
+            .to(inputTopic + "-json", Produced.with(stringSerde, stringSerde).withName("JSON_Output"));
 
 
         return builder.build();
