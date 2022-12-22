@@ -461,10 +461,6 @@ variable "owner" {
 variable "date_updated" {
 }
 
-variable "build_count" {
-  default = 1
-}
-
 # Ubuntu 20.04 (2022-01-30)
 variable "ami" {
   default = "ami-09e67e426f25ce0d7"
@@ -496,37 +492,26 @@ resource "aws_security_group" "allow_ssh" {
   }]
 }
 
-resource "aws_instance" "build" {
-  count = var.build_count
+resource "aws_instance" "demo" {
   ami   = var.ami
 
   instance_type = "t3.xlarge"
 
   key_name                    = "${var.key}"
   associate_public_ip_address = true
-  iam_instance_profile        = "Justin-Secrets"
-  subnet_id                   = aws_subnet.justin[keys(var.subnet_mappings)[count.index]].id
+  subnet_id                   = aws_subnet.lab[0].id
 
   vpc_security_group_ids = [ aws_security_group.allow_ssh.id ]
 
   root_block_device {
-    volume_size = 40
-    tags =  merge({
-      Name = "${var.owner}-build-workstation"
-      },
-    local.tf_tags)
+    volume_size = 20
   }
-
-  tags = merge({
-    Name = "${var.owner}-build-workstation"
-    },
-  local.tf_tags)
 }
 
 output "build" {
   value = {
-    ip  = aws_instance.build[*].public_ip,
-    dns = aws_instance.build[*].public_dns,
+    ip  = aws_instance.demo.public_ip,
+    dns = aws_instance.demo.public_dns,
   }
 }
 ```
