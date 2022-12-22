@@ -499,7 +499,7 @@ resource "aws_instance" "demo" {
 
   key_name                    = "${var.key}"
   associate_public_ip_address = true
-  subnet_id                   = aws_subnet.lab[0].id
+  subnet_id                   = aws_subnet.lab["az1"].id
 
   vpc_security_group_ids = [ aws_security_group.allow_ssh.id ]
 
