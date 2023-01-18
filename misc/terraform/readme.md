@@ -397,7 +397,7 @@ provider "aws" {
   ignore_tags {
     key_prefixes = [
       "divvy",
-      "confluent-infosec"
+      "confluent-infosec",
       "ics"
     ]
   }
