@@ -115,6 +115,7 @@ provider "aws" {
 ```tf
 variable "region" {
   default = "us-east-1"
+  # replace with "us-east-2" or "us-west-2" or any other region of choice
 }
 
 variable "owner" {
@@ -289,6 +290,7 @@ resource "aws_subnet" "lab_az1" {
   cidr_block = "10.0.1.0/24"
 
   availability_zone_id = "use1-az1"
+  # replace with "use2-az1" for us-east-2, or "usw2-az1" for us-west-2
 
   tags = {
     Name = "${var.owner}-Managed-az1"
@@ -303,6 +305,7 @@ resource "aws_subnet" "lab_az2" {
   cidr_block = "10.0.2.0/24"
 
   availability_zone_id = "use1-az2"
+  # replace with "use2-az2" for us-east-2, or "usw2-az2" for us-west-2
 
   tags = {
     Name = "${var.owner}-Managed-az2"
@@ -317,6 +320,7 @@ resource "aws_subnet" "lab_az3" {
   cidr_block = "10.0.3.0/24"
 
   availability_zone_id = "use1-az3"
+  # replace with "use2-az3" for us-east-2, or "usw2-az3" for us-west-2
 
   tags = {
     Name = "${var.owner}-Managed-az3"
@@ -379,6 +383,46 @@ resource "aws_subnet" "lab" {
 }
 ```
 
+If you're in us-east-2, use this for `subnet_mappings`:
+```
+variable "subnet_mappings" {
+  default = {
+    "az1" = {
+      "subnet" = 11,
+      "az"     = "2a",
+    },
+    "az2" = {
+      "subnet" = 12,
+      "az"     = "2b",
+    },
+    "az3" = {
+      "subnet" = 13,
+      "az"     = "2c",
+    },
+  }
+}
+```
+
+And use this for us-west-2:
+```
+variable "subnet_mappings" {
+  default = {
+    "az1" = {
+      "subnet" = 11,
+      "az"     = "2b",
+    },
+    "az2" = {
+      "subnet" = 12,
+      "az"     = "2a",
+    },
+    "az3" = {
+      "subnet" = 13,
+      "az"     = "2c",
+    },
+  }
+}
+```
+
 This uses `for_each` (https://www.terraform.io/language/meta-arguments/for_each) cause it allows for dictionaries, but there's also a `count` meta-argument (https://www.terraform.io/language/meta-arguments/count)
 
 Note that this will actually remove the old subnets and create new ones, for two reasons:
@@ -428,6 +472,7 @@ Update these files, as well:
 ```tf
 variable "region" {
   default = "us-east-1"
+  # replace with "us-east-2" or "us-west-2" or any other region of choice
 }
 
 variable "owner" {
@@ -452,6 +497,7 @@ Update `variables.tf` to add this:
 ```tf
 variable "region" {
   default = "us-east-1"
+  # replace with "us-east-2" or "us-west-2" or any other region of choice
 }
 
 variable "owner" {
