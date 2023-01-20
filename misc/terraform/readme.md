@@ -376,6 +376,7 @@ resource "aws_subnet" "lab" {
   cidr_block = "10.0.${each.value.subnet}.0/24"
 
   availability_zone_id = "use1-${each.key}"
+  # replace with "use1-${each.key}" for us-east-1, or "usw2-${each.key}" for us-west-2
 
   tags = {
     Name = "${var.owner}-Managed-${each.value.subnet}"
