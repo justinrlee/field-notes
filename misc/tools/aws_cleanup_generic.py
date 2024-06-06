@@ -67,14 +67,14 @@ def ec2_update_tag(instance_id, instance_name, region, key, value):
         )
 
 def ec2_stop(instance_id, instance_name, region):
-    if dry_run:
+    if dry_run or tag_only:
         print("DRY RUN: Stopping instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
     else:
         print("Stopping instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
         ec2_client.stop_instances(InstanceIds=[instance_id])
 
 def ec2_terminate(instance_id, instance_name, region):
-    if dry_run:
+    if dry_run or tag_only:
         print("DRY RUN: Terminating instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
     else:
         print("Terminating instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
@@ -210,6 +210,7 @@ def try_notify(email, message_type, message):
 parser = argparse.ArgumentParser(description="AWS Cleanup Script")
 parser.add_argument('--rundate')
 parser.add_argument('--dryrun', action='store_true')
+parser.add_argument('--tagonly', action='store_true')
 parser.add_argument('--full', action='store_true')
 
 args = parser.parse_args()
@@ -222,6 +223,7 @@ search_filter = DEFAULT_SEARCH_FILTER if args.full else test_filter
 
 use_test_region_filter = not args.full
 dry_run = args.dryrun
+tag_only = args.tagonly
 
 # Main process run
 print("Running cleaner on {}".format(d_run_date))
