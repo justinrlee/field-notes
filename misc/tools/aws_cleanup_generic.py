@@ -98,6 +98,18 @@ notify_messages = {
     Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {type} {name} [{instance_id}] in region {region}"
 }
 
+# There's some super janky logic in here because of the notification goals
+# Requirements:
+# 1) Must have a 'valid' notification at least 7 days before stop
+# 2) Most recent notification must be at most 14 days before stop
+# 3) We are only storing one notification date (logic might be simpler with notification history, not sure)
+# 4) Always notify; don't always update notification date, because:
+#     a) If notification is coming up soon, we only know about the most recent notification, not the previous notifications
+#     b) Sample scenario:
+#         Stopping in in 5 days
+#         Notified 3 days ago (This is a valid notification: between 7 and 14 days before delete)
+#         If we update the notification date today, we no longer know that the old notification was 5 days ago, and the known gap is now only 3 days, which is invalid
+
 # Takes the following:
     # di_notification_date: Most recent notification (datetime.date)
     # di_action_date: Current action date (datetime.date)
@@ -189,7 +201,7 @@ def try_notify(email, message_type, message):
     if owner_email is not None:
         notify_list.append((email, message_type, message))
 
-# Main
+# Parse Arguments
 parser = argparse.ArgumentParser(description="AWS Cleanup Script")
 parser.add_argument('--rundate')
 parser.add_argument('--dryrun', action='store_true')
@@ -206,7 +218,7 @@ search_filter = DEFAULT_SEARCH_FILTER if args.full else test_filter
 use_test_region_filter = not args.full
 dry_run = args.dryrun
 
-
+# Main process run
 print("Running cleaner on {}".format(d_run_date))
 notify_list = []
 
@@ -267,20 +279,6 @@ for region in regions:
         except:
             d_notification_date = D_MAX
 
-        # print(state)
-
-        # TODO: Fix stop_date vs d_stop_date in conditionals
-        # There's some super janky logic in here because of the notification goals
-        # Requirements:
-        # 1) Must have a 'valid' notification at least 7 days before stop
-        # 2) Most recent notification must be at most 14 days before stop
-        # 3) We are only storing one notification date (logic might be simpler with notification history, not sure)
-        # 4) Always notify; don't always update notification date, because:
-        #     a) If notification is coming up soon, we only know about the most recent notification, not the previous notifications
-        #     b) Sample scenario:
-        #         Stopping in in 5 days
-        #         Notified 3 days ago (This is a valid notification: between 7 and 14 days before delete)
-        #         If we update the notification date today, we no longer know that the old notification was 5 days ago, and the known gap is now only 3 days, which is invalid
         if autoscaling_group is None:
             if exception is None:
                 if state == "running":
@@ -354,7 +352,7 @@ for region in regions:
 
 print("")
 print("Today is {}".format(d_run_date))
-print("Notify List")
+print("Notification List:")
 
 for item in notify_list:
     print(item)
