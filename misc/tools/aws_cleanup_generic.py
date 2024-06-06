@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# BY DEFAULT, WILL ONLY RUN AGAINST TEST INSTANCES
+# MUST USE --full FLAG TO RUN AGAINST WHOLE ACCOUNT
 
 # On fresh Ubuntu instance, install prereqs:
 # sudo apt-get install -y python3-pip
@@ -239,10 +241,10 @@ for region in regions:
     # https://stackoverflow.com/a/952952
     # instances = [reservation["Instances"] for reservation in ec2_client.describe_instances(Filters=justin_filter)["Reservations"]]
     # TODO: Add pagination, maybe (hopefully we don't have more than 500 instance running...)
-    instances = [instance for reservation in ec2_client.describe_instances(MaxResults=500,Filters=search_filter)["Reservations"] for instance in reservation["Instances"]]
+    ec2_instances = [instance for reservation in ec2_client.describe_instances(MaxResults=500,Filters=search_filter)["Reservations"] for instance in reservation["Instances"]]
 
     # https://confluentinc.atlassian.net/wiki/spaces/~457145999/pages/3318745562/Cloud+Spend+Reduction+Proposal+AWS+Solutions+Engineering+Account
-    for instance in instances:
+    for instance in ec2_instances:
         print("")
         instance_id = instance["InstanceId"]
         print("Processing instance {0}".format(instance_id))
