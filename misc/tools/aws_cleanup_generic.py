@@ -32,6 +32,9 @@ D_TODAY = datetime.date.today()
 
 # Tag names
 T_OWNER_EMAIL = "owner_email"
+T_EMAIL = "email"
+T_DIVVY_OWNER = "divvy_owner"
+T_DIVVY_LAST_MODIFIED_BY = "divvy_last_modified_by"
 T_EXCEPTION = "cleanup_exception"
 T_STOP_DATE = "stop_date"
 T_TERMINATE_DATE = "terminate_date"
@@ -256,13 +259,18 @@ for region in regions:
 
         autoscaling_group = ([tag for tag in instance["Tags"] if tag["Key"] == T_AUTOSCALING_GROUP] or [{"Value": None}])[0]["Value"]
         exception =         ([tag for tag in instance["Tags"] if tag["Key"] == T_EXCEPTION] or [{"Value": None}])[0]["Value"]
-        owner_email =       ([tag for tag in instance["Tags"] if tag["Key"] == T_OWNER_EMAIL] or [{"Value": None}])[0]["Value"]
         
         stop_date =         ([tag for tag in instance["Tags"] if tag["Key"] == T_STOP_DATE] or [{"Value": None}])[0]["Value"]
         terminate_date =  ([tag for tag in instance["Tags"] if tag["Key"] == T_TERMINATE_DATE] or [{"Value": None}])[0]["Value"]
         notification_date = ([tag for tag in instance["Tags"] if tag["Key"] == T_NOTIFICATION_DATE] or [{"Value": None}])[0]["Value"]
 
         instance_name = ([tag for tag in instance["Tags"] if tag["Key"] == T_NAME] or [{"Value": "NoName"}])[0]["Value"]
+        
+        # Rough equivalent to coalesce
+        owner_email = ([tag for tag in instance["Tags"] if tag["Key"] == T_OWNER_EMAIL] or [{"Value": None}])[0]["Value"] \
+            or ([tag for tag in instance["Tags"] if tag["Key"] == T_EMAIL] or [{"Value": None}])[0]["Value"] \
+            or ([tag for tag in instance["Tags"] if tag["Key"] == T_DIVVY_OWNER] or [{"Value": None}])[0]["Value"] \
+            or ([tag for tag in instance["Tags"] if tag["Key"] == T_DIVVY_LAST_MODIFIED_BY] or [{"Value": None}])[0]["Value"]
 
         print("{} is {}".format(instance_name, state))
 
