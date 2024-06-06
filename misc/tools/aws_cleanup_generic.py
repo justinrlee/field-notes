@@ -1,14 +1,12 @@
 #!/usr/bin/python3
 
-# On fresh Ubuntu 20.04 instance, install prereqs:
+# On fresh Ubuntu instance, install prereqs:
 # sudo apt-get install -y python3-pip
 # python3 -m pip install boto3
 import boto3
 import datetime
 import enum
 import argparse
-
-test = True
 
 # Run only against instances in a specific region, for testing
 test_region_override = ['us-east-1', 'us-east-2']
@@ -20,7 +18,6 @@ test_filter = [
         'Values': ['test']
     },
 ]
-test_today_override = datetime.date(2024, 7, 3)
 
 NOTIFICATION_PERIOD = 7
 STOP_ACTION_DAYS = 15
@@ -31,7 +28,6 @@ DEFAULT_SEARCH_FILTER = []
 D_MAX = datetime.date.min
 D_TODAY = datetime.date.today()
 
-
 # Tag names
 T_OWNER_EMAIL = "owner_email"
 T_EXCEPTION = "cleanup_exception"
@@ -40,11 +36,6 @@ T_TERMINATE_DATE = "terminate_date"
 T_AUTOSCALING_GROUP = "aws:autoscaling:groupName"
 T_NOTIFICATION_DATE = "cleanup_notification_date"
 T_NAME = "Name"
-
-
-d_run_date = D_TODAY
-
-
 
 def ec2_update_tag(instance_id, instance_name, region, key, value):
     # TODO: In the future, could batch this up, for now doing it one at a time
@@ -206,6 +197,7 @@ parser.add_argument('--full', action='store_true')
 
 args = parser.parse_args()
 
+d_run_date = D_TODAY
 if args.rundate:
     d_run_date = datetime.date.fromisoformat(args.rundate)
 
