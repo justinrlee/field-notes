@@ -93,16 +93,16 @@ class Result(str, enum.Enum):
     OVERRIDE_ACTION_DATE        = "override_action_date"
 
 notify_messages = {
-    Result.PAST_COMPLETE_ACTION        : "PAST_COMPLETE_ACTION: Completed {action} {type} {name} [{instance_id}] in region {region} (tag [{tag}])",
-    Result.PAST_EXPIRED_NOTIFICATION   : "PAST_EXPIRED_NOTIFICATION: Updated tag [{tag}]: Will {action} {type} {name} [{instance_id}] in region {region} on or after {date}",
-    Result.PAST_BUMP_ACTION_DATE       : "PAST_BUMP_ACTION_DATE: Updated tag [{tag}]: will {action} {type} {name} [{instance_id}] in region {region} on or after {date}",
-    Result.ACTION_DATE_TOO_FAR         : "ACTION_DATE_TOO_FAR: Updated tag [{tag}] (date too far out): {type} {name} [{instance_id}] in region {region}: {action} date set to {date}",
-    Result.FUTURE_NORMAL_NOTIFY        : "FUTURE_NORMAL_NOTIFY:  Will {action} {type} {name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
-    Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {type} {name} [{instance_id}] in region {region} on or after {date}",
-    Result.WINDOW_NORMAL_NOTIFY        : "WINDOW_NORMAL_NOTIFY:  Will {action} {type} {name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
-    Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {type} {name} [{instance_id}] in region {region} on or after {date}",
-    Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {type} {name} [{instance_id}] in region {region}",
-    Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {type} {name} [{instance_id}] in region {region}",
+    Result.PAST_COMPLETE_ACTION        : "PAST_COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
+    Result.PAST_EXPIRED_NOTIFICATION   : "PAST_EXPIRED_NOTIFICATION: Updated tag [{tag}]: Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.PAST_BUMP_ACTION_DATE       : "PAST_BUMP_ACTION_DATE: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.ACTION_DATE_TOO_FAR         : "ACTION_DATE_TOO_FAR: Updated tag [{tag}] (date too far out): {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date set to {date}",
+    Result.FUTURE_NORMAL_NOTIFY        : "FUTURE_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
+    Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.WINDOW_NORMAL_NOTIFY        : "WINDOW_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
+    Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
+    Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
 }
 
 # There's some super janky logic in here because of the notification goals
@@ -209,8 +209,8 @@ def try_notify(email, message_type, message):
         notify_list.append((email, message_type, message))
 
 def try_detailed_notify(email,
-                        instance_name,
                         instance_type,
+                        instance_name,
                         instance_id,
                         region,
                         action,
@@ -220,8 +220,8 @@ def try_detailed_notify(email,
     if email is not None:
         detailed_notify_list.append({
             'email' : email,
-            'instance_name' : instance_name,
             'instance_type' : instance_type,
+            'instance_name' : instance_name,
             'instance_id' : instance_id,
             'region' : region,
             'action' : action,
@@ -331,18 +331,18 @@ for region in regions:
                         ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, r['dn_action_date'])
 
                         message = notify_messages[r['result']].format(
-                            action = "STOP",
-                            type = "EC2 Instance",
+                            instance_type = "EC2",
+                            instance_name = instance_name,
                             instance_id = instance_id,
                             region = region,
-                            name = instance_name,
-                            date = r['dn_action_date'],
+                            action = "STOP",
                             tag = T_STOP_DATE,
+                            date = r['dn_action_date'],
                         )
                         try_notify(owner_email, str(r['result']), message)
                         try_detailed_notify(email = owner_email,
-                                            instance_name = instance_name,
                                             instance_type = "EC2",
+                                            instance_name = instance_name,
                                             instance_id = instance_id,
                                             region = region,
                                             action = "STOP",
@@ -356,27 +356,45 @@ for region in regions:
                             ec2_update_tag(instance_id, instance_name, region, T_TERMINATE_DATE, d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS))
 
                             message = notify_messages[Result.ADD_ACTION_DATE].format(
-                                action = "TERMINATE",
-                                type = "EC2 Instance",
+                                instance_type = "EC2",
+                                instance_name = instance_name,
                                 instance_id = instance_id,
                                 region = region,
-                                name = instance_name,
+                                action = "TERMINATE",
                                 date = d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS),
                                 tag = T_TERMINATE_DATE,
                             )
                             try_notify(owner_email, str(r['result']), message)
+                            try_detailed_notify(email = owner_email,
+                                                instance_type = "EC2",
+                                                instance_name = instance_name,
+                                                instance_id = instance_id,
+                                                region = region,
+                                                action = "TERMINATE",
+                                                tag = T_TERMINATE_DATE,
+                                                date = d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS),
+                                                message = message)
                     else:
                         ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS))
                         message = notify_messages[Result.OVERRIDE_ACTION_DATE].format(
-                            action = "STOP",
-                            type = "EC2 Instance",
+                            instance_type = "EC2",
+                            instance_name = instance_name,
                             instance_id = instance_id,
                             region = region,
-                            name = instance_name,
-                            date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
+                            action = "STOP",
                             tag = T_STOP_DATE,
+                            date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
                         )
                         try_notify(owner_email, str(Result.OVERRIDE_ACTION_DATE), message)
+                        try_detailed_notify(email = owner_email,
+                                            instance_type = "EC2",
+                                            instance_name = instance_name,
+                                            instance_id = instance_id,
+                                            region = region,
+                                            action = "STOP",
+                                            tag = T_STOP_DATE,
+                                            date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
+                                            message = message)
 
                 elif state == "stopped":
                     r = determine_action(d_notification_date, d_terminate_date, NOTIFICATION_PERIOD, TERMINATE_ACTION_DAYS)
@@ -388,18 +406,27 @@ for region in regions:
                         ec2_terminate(instance_id = instance_id, instance_name = instance_name, region = region)
 
                     message = notify_messages[r['result']].format(
-                        action = "TERMINATE",
-                        type = "EC2 Instance",
+                        instance_type = "EC2",
+                        instance_name = instance_name,
                         instance_id = instance_id,
                         region = region,
-                        name = instance_name,
-                        date = r['dn_action_date'],
+                        action = "TERMINATE",
                         tag = T_TERMINATE_DATE,
+                        date = r['dn_action_date'],
                     )
                     try_notify(owner_email, str(r['result']), message)
+                    try_detailed_notify(email = owner_email,
+                                        instance_type = "EC2",
+                                        instance_name = instance_name,
+                                        instance_id = instance_id,
+                                        region = region,
+                                        action = "TERMINATE",
+                                        tag = T_TERMINATE_DATE,
+                                        date = r['dn_action_date'],
+                                        message = message)
                 else:
-                    print("Ignoring {name} [{instance_id}] in region {region} because it is in state {state}".format(
-                        name = instance_name,
+                    print("Ignoring {instance_name} [{instance_id}] in region {region} because it is in state {state}".format(
+                        instance_name = instance_name,
                         instance_id = instance_id,
                         region = region,
                         state = state))
