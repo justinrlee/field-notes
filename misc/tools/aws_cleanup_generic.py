@@ -90,6 +90,7 @@ class Result(str, enum.Enum):
     WINDOW_NORMAL_NOTIFY        = "window_normal_notify"
     WINDOW_RECENT_BUMP          = "window_recent_bump"
     ADD_ACTION_DATE             = "add_action_date"
+    OVERRIDE_ACTION_DATE        = "override_action_date"
 
 notify_messages = {
     Result.PAST_COMPLETE_ACTION        : "PAST_COMPLETE_ACTION: Completed {action} {type} {name} [{instance_id}] in region {region} (tag [{tag}])",
@@ -100,7 +101,8 @@ notify_messages = {
     Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {type} {name} [{instance_id}] in region {region} on or after {date}",
     Result.WINDOW_NORMAL_NOTIFY        : "WINDOW_NORMAL_NOTIFY:  Will {action} {type} {name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
     Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {type} {name} [{instance_id}] in region {region} on or after {date}",
-    Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {type} {name} [{instance_id}] in region {region}"
+    Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {type} {name} [{instance_id}] in region {region}",
+    Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {type} {name} [{instance_id}] in region {region}",
 }
 
 # There's some super janky logic in here because of the notification goals
@@ -332,6 +334,15 @@ for region in regions:
                             try_notify(owner_email, str(r['result']), message)
                     else:
                         ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS))
+                        message = notify_messages[Result.OVERRIDE_ACTION_DATE].format(
+                            action = "STOP",
+                            type = "EC2 Instance",
+                            instance_id = instance_id,
+                            region = region,
+                            name = instance_name,
+                            date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
+                            tag = T_STOP_DATE,
+                        )
 
                 elif state == "stopped":
                     r = determine_action(d_notification_date, d_terminate_date, NOTIFICATION_PERIOD, TERMINATE_ACTION_DAYS)
