@@ -205,8 +205,31 @@ def determine_action(di_notification_date, di_action_date, i_notification_days, 
     print("ERRORR")
 
 def try_notify(email, message_type, message):
-    if owner_email is not None:
+    if email is not None:
         notify_list.append((email, message_type, message))
+
+def try_detailed_notify(email,
+                        instance_name,
+                        instance_type,
+                        instance_id,
+                        region,
+                        action,
+                        tag,
+                        date,
+                        message):
+    if email is not None:
+        detailed_notify_list.append({
+            'email' : email,
+            'instance_name' : instance_name,
+            'instance_type' : instance_type,
+            'instance_id' : instance_id,
+            'region' : region,
+            'action' : action,
+            'tag' : tag,
+            'date' : date,
+            'message': message
+        })
+
 
 # Parse Arguments
 parser = argparse.ArgumentParser(description="AWS Cleanup Script")
@@ -234,6 +257,7 @@ override_stop_date = args.override_stop_date
 # Main process run
 print("Running cleaner on {}".format(d_run_date))
 notify_list = []
+detailed_notify_list = []
 
 if use_test_region_filter:
     regions = test_region_override
@@ -316,6 +340,15 @@ for region in regions:
                             tag = T_STOP_DATE,
                         )
                         try_notify(owner_email, str(r['result']), message)
+                        try_detailed_notify(email = owner_email,
+                                            instance_name = instance_name,
+                                            instance_type = "EC2",
+                                            instance_id = instance_id,
+                                            region = region,
+                                            action = "STOP",
+                                            tag = T_STOP_DATE,
+                                            date = r["dn_action_date"],
+                                            message = message)
 
                         if r['result'] is Result.PAST_COMPLETE_ACTION:
                             ec2_stop(instance_id = instance_id, instance_name = instance_name, region = region)
@@ -386,4 +419,8 @@ print("Today is {}".format(d_run_date))
 print("Notification List:")
 
 for item in notify_list:
+    print(item)
+
+print("Detailed Notification List:")
+for item in detailed_notify_list:
     print(item)
