@@ -209,9 +209,10 @@ def try_notify(email, message_type, message):
 # Parse Arguments
 parser = argparse.ArgumentParser(description="AWS Cleanup Script")
 parser.add_argument('--rundate')
-parser.add_argument('--dryrun', action='store_true')
-parser.add_argument('--tagonly', action='store_true')
+parser.add_argument('--dry-run', action='store_true')
+parser.add_argument('--tag-only', action='store_true')
 parser.add_argument('--full', action='store_true')
+parser.add_argument('--override-stop-date', action='store_true')
 
 args = parser.parse_args()
 
@@ -222,8 +223,11 @@ if args.rundate:
 search_filter = DEFAULT_SEARCH_FILTER if args.full else test_filter
 
 use_test_region_filter = not args.full
-dry_run = args.dryrun
-tag_only = args.tagonly
+dry_run = args.dry_run
+tag_only = args.tag_only
+
+override_stop_date = args.override_stop_date
+
 
 # Main process run
 print("Running cleaner on {}".format(d_run_date))
@@ -294,37 +298,40 @@ for region in regions:
         if autoscaling_group is None:
             if exception is None:
                 if state == "running":
-                    r = determine_action(d_notification_date, d_stop_date, NOTIFICATION_PERIOD, STOP_ACTION_DAYS)
-                    print(r)
-                    ec2_update_tag(instance_id, instance_name, region, T_NOTIFICATION_DATE, r['dn_notification_date'])
-                    ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, r['dn_action_date'])
+                    if not override_stop_date:
+                        r = determine_action(d_notification_date, d_stop_date, NOTIFICATION_PERIOD, STOP_ACTION_DAYS)
+                        print(r)
+                        ec2_update_tag(instance_id, instance_name, region, T_NOTIFICATION_DATE, r['dn_notification_date'])
+                        ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, r['dn_action_date'])
 
-                    message = notify_messages[r['result']].format(
-                        action = "STOP",
-                        type = "EC2 Instance",
-                        instance_id = instance_id,
-                        region = region,
-                        name = instance_name,
-                        date = r['dn_action_date'],
-                        tag = T_STOP_DATE,
-                    )
-                    try_notify(owner_email, str(r['result']), message)
-
-                    if r['result'] is Result.PAST_COMPLETE_ACTION:
-                        ec2_stop(instance_id = instance_id, instance_name = instance_name, region = region)
-                        ec2_update_tag(instance_id, instance_name, region, T_NOTIFICATION_DATE, d_run_date)
-                        ec2_update_tag(instance_id, instance_name, region, T_TERMINATE_DATE, d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS))
-
-                        message = notify_messages[Result.ADD_ACTION_DATE].format(
-                            action = "TERMINATE",
+                        message = notify_messages[r['result']].format(
+                            action = "STOP",
                             type = "EC2 Instance",
                             instance_id = instance_id,
                             region = region,
                             name = instance_name,
-                            date = d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS),
-                            tag = T_TERMINATE_DATE,
+                            date = r['dn_action_date'],
+                            tag = T_STOP_DATE,
                         )
                         try_notify(owner_email, str(r['result']), message)
+
+                        if r['result'] is Result.PAST_COMPLETE_ACTION:
+                            ec2_stop(instance_id = instance_id, instance_name = instance_name, region = region)
+                            ec2_update_tag(instance_id, instance_name, region, T_NOTIFICATION_DATE, d_run_date)
+                            ec2_update_tag(instance_id, instance_name, region, T_TERMINATE_DATE, d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS))
+
+                            message = notify_messages[Result.ADD_ACTION_DATE].format(
+                                action = "TERMINATE",
+                                type = "EC2 Instance",
+                                instance_id = instance_id,
+                                region = region,
+                                name = instance_name,
+                                date = d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS),
+                                tag = T_TERMINATE_DATE,
+                            )
+                            try_notify(owner_email, str(r['result']), message)
+                    else:
+                        ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS))
 
                 elif state == "stopped":
                     r = determine_action(d_notification_date, d_terminate_date, NOTIFICATION_PERIOD, TERMINATE_ACTION_DAYS)
