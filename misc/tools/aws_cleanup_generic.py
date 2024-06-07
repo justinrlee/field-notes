@@ -343,6 +343,7 @@ for region in regions:
                             date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
                             tag = T_STOP_DATE,
                         )
+                        try_notify(owner_email, str(Result.OVERRIDE_ACTION_DATE), message)
 
                 elif state == "stopped":
                     r = determine_action(d_notification_date, d_terminate_date, NOTIFICATION_PERIOD, TERMINATE_ACTION_DAYS)
