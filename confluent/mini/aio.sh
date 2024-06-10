@@ -4,7 +4,7 @@
 if [[ $# -gt 0 ]]; then
 	VERSION=$1
 else
-	VERSION=7.5
+	VERSION=7.6
 fi
 
 sudo apt-get update && \
@@ -95,7 +95,8 @@ for SERVICE in \
   confluent-schema-registry \
   confluent-kafka-connect \
   confluent-ksqldb \
-  confluent-control-center;
+  confluent-control-center \
+  ;
   do
     echo ${SERVICE};
     sudo systemctl enable ${SERVICE};
