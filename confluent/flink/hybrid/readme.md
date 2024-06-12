@@ -155,6 +155,21 @@ Or as a one-liner:
 kubectl -n confluent exec -it confluent-flink-utility-0 -- sql-client.sh -Drest.address=jobmanager.confluent -Drest.port=8081
 ```
 
+## Notes on lifecycle
+
+With self-managed Flink:
+* You must define a Flink table for every Kafka topic you interact with, including all metadata (fields)
+* SR is used for deserialization but isn't used for automatic metadata detection/generation (unlike Confluent Cloud Flink SQL)
+* You must create topics in Kafka directly (will not be auto-created)
+* Flink 'create table' statements persist for the duration of the sql client
+* Flink 'select Y' statements get submitted to the Jobs to the JobManager and end when terminated (or when the client closes) (Job Failed or Job Completed)
+* Flink 'insert into X select Y' statements get submitted as Jobs to the JobManager and persist (Job Failed or Job Running)
+    * These can be stopped via subsequent SQL client lifecycles
+    * These can be examined through the Flink UI
+* If you need to create additional persistent query statements, you must re-run the DDL (create table) queries
+
+See also: [confluent/flink/self_managed/queries.md](link)
+
 ## SQL
 
 When working with SQL with SR, you have to define tables with the `kafka` or `upsert-kafka` connectors. Few examples:
