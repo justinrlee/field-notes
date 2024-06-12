@@ -1,0 +1,145 @@
+# Minimal CFK
+# * 1x KRaft
+# * 1x Kafka
+# * 1x SR
+# * 1x Connect
+# * 1x Control Center
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KRaftController
+metadata:
+  name: kraft
+  namespace: confluent
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server:7.6.1
+    init: confluentinc/confluent-init-container:2.8.2
+  dataVolumeCapacity: 10Gi
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: confluent
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server:7.6.1
+    init: confluentinc/confluent-init-container:2.8.2
+  dataVolumeCapacity: 10Gi
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+  dependencies:
+    kRaftController:
+      clusterRef:
+        name: kraft
+        namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestClass
+metadata:
+  name: kafka
+  namespace: confluent
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: SchemaRegistry
+metadata:
+  name: schemaregistry
+  namespace: confluent
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-schema-registry:7.6.0
+    init: confluentinc/confluent-init-container:2.8.0
+  dependencies:
+    kafka:
+      discovery:
+        name: kafka
+        namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+  namespace: confluent
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server-connect:7.6.1
+    init: confluentinc/confluent-init-container:2.8.2
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        confluentHub:
+          - owner: confluentinc
+            name: kafka-connect-datagen
+            version: latest
+  configOverrides:
+    server:
+    - config.storage.replication.factor=1
+    - offset.storage.replication.factor=1
+    - status.storage.replication.factor=1
+    - confluent.topic.replication.factor=1
+  dependencies:
+    kafka:
+      discovery:
+        name: kafka
+        namespace: confluent
+    schemaRegistry:
+      url: http://schemaregistry.confluent.svc.cluster.local:8081
+  # dependencies:
+  #   kafka:
+  #     bootstrapEndpoint: kafka:9071
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: ControlCenter
+metadata:
+  name: controlcenter
+  namespace: confluent
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-enterprise-control-center:7.6.1
+    init: confluentinc/confluent-init-container:2.8.2
+  dataVolumeCapacity: 10Gi
+  configOverrides:
+    server:
+    - confluent.controlcenter.mode.enable=management
+    - confluent.controlcenter.command.topic.replication=1
+    - confluent.controlcenter.id=1
+    - confluent.controlcenter.internal.topics.partitions=2
+    - confluent.controlcenter.internal.topics.replication=1
+    - confluent.controlcenter.ui.autoupdate.enable=false
+    - confluent.metrics.topic.replication=1
+    - confluent.monitoring.interceptor.topic.partitions=2
+    - confluent.monitoring.interceptor.topic.replication=1
+  externalAccess:
+    type: nodePort
+    nodePort:
+      nodePortOffset: 30000
+      # Need something, but doesn't matter since we use insecure http?
+      host: localhost
+  dependencies:
+    kafka:
+      discovery:
+        name: kafka
+        namespace: confluent
+    schemaRegistry:
+      url: http://schemaregistry.confluent.svc.cluster.local:8081
+    connect:
+    - name: connect
+      url: http://connect.confluent.svc.cluster.local:8083

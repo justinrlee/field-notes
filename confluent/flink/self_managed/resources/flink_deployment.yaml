@@ -1,0 +1,64 @@
+# FlinkDeployment
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: flink-session
+  namespace: confluent
+spec:
+  image: "justinrlee/flink:1.19.0-scala_2.12-java17-cflt-0.0.2"
+  flinkVersion: v1_18
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+---
+# Expose container on 'jobmanager' endpoint:
+# Internally: `http://jobmanager.confluent:8081`
+# Externally (on k3s): `http://<VM-hostname>:8081`
+apiVersion: v1
+kind: Service
+metadata:
+  name: jobmanager
+  namespace: confluent
+spec:
+  ports:
+  - name: rest
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: flink-session
+    component: jobmanager
+    type: flink-native-kubernetes
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: confluent-flink-utility
+  namespace: confluent
+spec:
+  selector:
+    matchLabels:
+      app: confluent-flink-utility # has to match .spec.template.metadata.labels
+  serviceName: "confluent-flink-utility"
+  replicas: 1 # by default is 1
+  # minReadySeconds: 10 # by default is 0
+  template:
+    metadata:
+      labels:
+        app: confluent-flink-utility # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: utility
+        image: "justinrlee/flink:1.19.0-scala_2.12-java17-cflt-0.0.2"
+        command: ["tail"]
+        args: ["-f", "/dev/null"]

@@ -1,0 +1,13 @@
+# Used to build justinrlee/flink:1.19.0-scala_2.12-java17-cflt-0.0.x
+FROM flink:1.19.0-scala_2.12-java17
+# TODO: Java 17
+# TODO: Add other tools (vi, net-tools, etc.)
+
+RUN wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka/3.2.0-1.19/flink-connector-kafka-3.2.0-1.19.jar; \
+    wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.19.0/flink-sql-avro-confluent-registry-1.19.0.jar; \
+    wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/kafka/kafka-clients/3.4.0/kafka-clients-3.4.0.jar; \
+    wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-json/1.19.0/flink-json-1.19.0.jar; \
+    wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-csv/1.19.0/flink-csv-1.19.0.jar; \
+    wget -P /opt/flink/lib/ https://github.com/knaufk/flink-faker/releases/download/v0.5.2/flink-faker-0.5.2.jar;
+
+RUN chown -R flink:flink /opt/flink/lib

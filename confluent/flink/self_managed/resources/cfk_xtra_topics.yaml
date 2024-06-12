@@ -1,0 +1,65 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-customers-keyed
+  namespace: confluent
+spec:
+  name: shoe_customers_keyed
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoes-keyed
+  namespace: confluent
+spec:
+  name: shoes_keyed
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-order-customer-product
+  namespace: confluent
+spec:
+  name: shoe_order_customer_product
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-loyalty-levels
+  namespace: confluent
+spec:
+  name: shoe_loyalty_levels
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-promotions
+  namespace: confluent
+spec:
+  name: shoe_promotions
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent

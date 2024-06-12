@@ -1,0 +1,78 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoes
+  namespace: confluent
+spec:
+  name: shoes
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-customers
+  namespace: confluent
+spec:
+  name: shoe_customers
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-orders
+  namespace: confluent
+spec:
+  name: shoe_orders
+  replicas: 1
+  partitionCount: 3
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: shoes
+  namespace: confluent
+spec:
+  name: shoes
+  taskMax: 1
+  class: "io.confluent.kafka.connect.datagen.DatagenConnector"
+  configs:
+    quickstart: "shoes"
+    kafka.topic: "shoes"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: shoe-customers
+  namespace: confluent
+spec:
+  name: shoe_customers
+  taskMax: 1
+  class: "io.confluent.kafka.connect.datagen.DatagenConnector"
+  configs:
+    quickstart: "shoe_customers"
+    kafka.topic: "shoe_customers"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: shoe-orders
+  namespace: confluent
+spec:
+  name: shoe_orders
+  taskMax: 1
+  class: "io.confluent.kafka.connect.datagen.DatagenConnector"
+  configs:
+    quickstart: "shoe_orders"
+    kafka.topic: "shoe_orders"
