@@ -3,7 +3,7 @@
 # MUST USE --full FLAG TO RUN AGAINST WHOLE ACCOUNT
 
 # On fresh Ubuntu instance, install prereqs:
-# sudo apt-get install -y python3-pip
+# sudo apt-get update; sudo apt-get install -y python3-pip;
 # python3 -m pip install boto3
 import boto3
 import datetime
@@ -215,20 +215,21 @@ def try_detailed_notify(email,
                         region,
                         action,
                         tag,
+                        old_date,
                         date,
                         message):
-    if email is not None:
-        detailed_notify_list.append({
-            'email' : email,
-            'instance_type' : instance_type,
-            'instance_name' : instance_name,
-            'instance_id' : instance_id,
-            'region' : region,
-            'action' : action,
-            'tag' : tag,
-            'date' : date,
-            'message': message
-        })
+    detailed_notify_list.append({
+        'email' : email,
+        'instance_type' : instance_type,
+        'instance_name' : instance_name,
+        'instance_id' : instance_id,
+        'region' : region,
+        'action' : action,
+        'tag' : tag,
+        'old_date': old_date,
+        'date' : date,
+        'message': message
+    })
 
 
 # Parse Arguments
@@ -325,6 +326,7 @@ for region in regions:
             if exception is None:
                 if state == "running":
                     if not override_stop_date:
+                        # Default behavior
                         r = determine_action(d_notification_date, d_stop_date, NOTIFICATION_PERIOD, STOP_ACTION_DAYS)
                         print(r)
                         ec2_update_tag(instance_id, instance_name, region, T_NOTIFICATION_DATE, r['dn_notification_date'])
@@ -347,10 +349,12 @@ for region in regions:
                                             region = region,
                                             action = "STOP",
                                             tag = T_STOP_DATE,
+                                            old_date = d_stop_date,
                                             date = r["dn_action_date"],
                                             message = message)
 
                         if r['result'] is Result.PAST_COMPLETE_ACTION:
+                            # If we're stopping the instance, also set termination date and notify for that as well.
                             ec2_stop(instance_id = instance_id, instance_name = instance_name, region = region)
                             ec2_update_tag(instance_id, instance_name, region, T_NOTIFICATION_DATE, d_run_date)
                             ec2_update_tag(instance_id, instance_name, region, T_TERMINATE_DATE, d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS))
@@ -372,9 +376,11 @@ for region in regions:
                                                 region = region,
                                                 action = "TERMINATE",
                                                 tag = T_TERMINATE_DATE,
+                                                old_date = d_terminate_date,
                                                 date = d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS),
                                                 message = message)
                     else:
+                        # Allows for batch override of dates
                         ec2_update_tag(instance_id, instance_name, region, T_STOP_DATE, d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS))
                         message = notify_messages[Result.OVERRIDE_ACTION_DATE].format(
                             instance_type = "EC2",
@@ -393,6 +399,7 @@ for region in regions:
                                             region = region,
                                             action = "STOP",
                                             tag = T_STOP_DATE,
+                                            old_date = d_stop_date,
                                             date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
                                             message = message)
 
@@ -422,6 +429,7 @@ for region in regions:
                                         region = region,
                                         action = "TERMINATE",
                                         tag = T_TERMINATE_DATE,
+                                        old_date = d_terminate_date,
                                         date = r['dn_action_date'],
                                         message = message)
                 else:
