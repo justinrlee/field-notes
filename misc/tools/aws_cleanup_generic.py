@@ -91,6 +91,7 @@ class Result(str, enum.Enum):
     WINDOW_RECENT_BUMP          = "window_recent_bump"
     ADD_ACTION_DATE             = "add_action_date"
     OVERRIDE_ACTION_DATE        = "override_action_date"
+    EXCEPTION                   = "exception"
 
 notify_messages = {
     Result.PAST_COMPLETE_ACTION        : "PAST_COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
@@ -103,6 +104,7 @@ notify_messages = {
     Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
     Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
     Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
+    Result.EXCEPTION                   : "EXCEPTION: {instance_type} {instance_name} [{instance_id}] in region {region} has an exception",
 }
 
 # There's some super janky logic in here because of the notification goals
@@ -341,7 +343,7 @@ for region in regions:
                             tag = T_STOP_DATE,
                             date = r['dn_action_date'],
                         )
-                        try_notify(owner_email, str(r['result']), message)
+                        # try_notify(owner_email, str(r['result']), message)
                         try_detailed_notify(email = owner_email,
                                             instance_type = "EC2",
                                             instance_name = instance_name,
@@ -368,7 +370,7 @@ for region in regions:
                                 date = d_run_date + datetime.timedelta(days = TERMINATE_ACTION_DAYS),
                                 tag = T_TERMINATE_DATE,
                             )
-                            try_notify(owner_email, str(r['result']), message)
+                            # try_notify(owner_email, str(r['result']), message)
                             try_detailed_notify(email = owner_email,
                                                 instance_type = "EC2",
                                                 instance_name = instance_name,
@@ -391,7 +393,7 @@ for region in regions:
                             tag = T_STOP_DATE,
                             date = d_run_date + datetime.timedelta(days=STOP_ACTION_DAYS),
                         )
-                        try_notify(owner_email, str(Result.OVERRIDE_ACTION_DATE), message)
+                        # try_notify(owner_email, str(Result.OVERRIDE_ACTION_DATE), message)
                         try_detailed_notify(email = owner_email,
                                             instance_type = "EC2",
                                             instance_name = instance_name,
@@ -421,7 +423,7 @@ for region in regions:
                         tag = T_TERMINATE_DATE,
                         date = r['dn_action_date'],
                     )
-                    try_notify(owner_email, str(r['result']), message)
+                    # try_notify(owner_email, str(r['result']), message)
                     try_detailed_notify(email = owner_email,
                                         instance_type = "EC2",
                                         instance_name = instance_name,
@@ -441,10 +443,29 @@ for region in regions:
 
             else: # Exception exists, add to notify list
                 print("Exception exists for instance {0}: {1}".format(instance_id,exception))
-                if owner_email is not None:
-                    try_notify(owner_email, "exception", "exception placeholder {0} [{1}] in region {2}".format(instance_name, instance_id, region))
-                else:
-                    try_notify("jlee@confluent.io", "invalid_exception", "invalid_exception placeholder {0} [{1}] in region {2}".format(instance_name, instance_id, region))
+                message = notify_messages[r['result']].format(
+                        instance_type = "EC2",
+                        instance_name = instance_name,
+                        instance_id = instance_id,
+                        region = region,
+                        action = "EXCEPTION",
+                        tag = T_EXCEPTION,
+                        date = D_TODAY,
+                    )
+                try_detailed_notify(email = owner_email,
+                                    instance_type = "EC2",
+                                    instance_name = instance_name,
+                                    instance_id = instance_id,
+                                    region = region,
+                                    action = "EXCEPTION",
+                                    tag = T_EXCEPTION,
+                                    old_date = D_TODAY,
+                                    date = D_TODAY,
+                                    message = "{}: {}".format(message, exception))
+                try_notify(owner_email, "exception", "exception placeholder {0} [{1}] in region {2}".format(instance_name, instance_id, region))
+                # if owner_email is not None:
+                # else:
+                    # try_notify("jlee@confluent.io", "invalid_exception", "invalid_exception placeholder {0} [{1}] in region {2}".format(instance_name, instance_id, region))
 
         else: # In autoscaling group
             print("Instance {0} is in ASG {1}, skipping".format(instance_id,autoscaling_group))
