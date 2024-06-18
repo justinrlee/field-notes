@@ -134,15 +134,33 @@ def determine_action(
         }
 
     elif idn_action_date < d_run_date:
-        if idn_notification_1 is None or idn_notification_2 is None or idn_notification_3 is None:
-            # TODO FIX THIS LOGIC; for now this tries to resend all three notifications
-            message = "Extend stop date (missing notifications)"
+        if idn_notification_1 is None:
+            message = "Set stop date to today + 3 (missing notifications)"
             return {
-                'odn_notification_1': None,
+                'odn_notification_1': d_run_date,
                 'odn_notification_2': None,
                 'odn_notification_3': None,
                 'odn_action_date': d_run_date + datetime.timedelta(days = 3),
-                'result': Result.PAST_BUMP_ACTION_DATE
+                'result': Result.PAST_BUMP_NOTIFICATION_1
+            }
+        elif  idn_notification_2 is None:
+            message = "Set stop date to today + 2 (missing notifications)"
+            return {
+                'odn_notification_1': idn_notification_1,
+                'odn_notification_2': d_run_date,
+                'odn_notification_3': None,
+                'odn_action_date': d_run_date + datetime.timedelta(days = 2),
+                'result': Result.PAST_BUMP_NOTIFICATION_2
+            }
+
+        elif  idn_notification_3 is None:
+            message = "Set stop date to today + 2 (missing notifications)"
+            return {
+                'odn_notification_1': idn_notification_1,
+                'odn_notification_2': idn_notification_2,
+                'odn_notification_3': d_run_date,
+                'odn_action_date': d_run_date + datetime.timedelta(days = 1),
+                'result': Result.PAST_BUMP_NOTIFICATION_3
             }
 
         else:
@@ -202,7 +220,9 @@ class Result(str, enum.Enum):
     ADD_ACTION_DATE             = "add_action_date"
     RESET_ACTION_DATE           = "reset_action_date"
     COMPLETE_ACTION             = "complete_action"
-    PAST_BUMP_ACTION_DATE       = "past_bump_action_date"
+    PAST_BUMP_NOTIFICATION_1    = "past_bump_notification_1"
+    PAST_BUMP_NOTIFICATION_2    = "past_bump_notification_2"
+    PAST_BUMP_NOTIFICATION_3    = "past_bump_notification_3"
 
     SEND_NOTIFICATION_1         = "send_notification_1"
     SEND_NOTIFICATION_2         = "send_notification_2"
@@ -223,7 +243,9 @@ notify_messages = {
     Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
     Result.RESET_ACTION_DATE           : "RESET_ACTION_DATE: Updated tag [{tag}] (date too far out): {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date set to {date}",
     Result.COMPLETE_ACTION             : "COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
-    Result.PAST_BUMP_ACTION_DATE       : "PAST_BUMP_ACTION_DATE: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.PAST_BUMP_NOTIFICATION_1       : "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.PAST_BUMP_NOTIFICATION_2       : "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.PAST_BUMP_NOTIFICATION_3       : "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
     
     Result.SEND_NOTIFICATION_1       : "SEND_NOTIFICATION_1: LOREM IPSUM",
     Result.SEND_NOTIFICATION_2       : "SEND_NOTIFICATION_2: LOREM IPSUM",
