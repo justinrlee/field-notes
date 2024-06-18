@@ -511,7 +511,7 @@ for region in regions:
                         pass # Placeholder for 'override' behavior
 
                 else: # State is not running or stopped
-                    message = notify_messages[Result.IGNORE_OTHER_STATE].format(
+                    message = notify_messages[Result.IGNORE_OTHER_STATES].format(
                             instance_type = "EC2",
                             instance_name = instance_name,
                             instance_id = instance_id,
