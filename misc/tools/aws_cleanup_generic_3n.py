@@ -197,7 +197,7 @@ def determine_action(
                 'result': Result.SEND_NOTIFICATION_1
             }
 
-        elif dn_notification_2 and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_2):
+        elif dn_notification_2 is None and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_2):
             message = "Send second notification"
             return {
                 'odn_notification_1': dn_notification_1,
@@ -207,7 +207,7 @@ def determine_action(
                 'result': Result.SEND_NOTIFICATION_2
             }
         
-        elif dn_notification_3 and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_3):
+        elif dn_notification_3 is None  and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_3):
             message = "Send third notification"
             return {
                 'odn_notification_1': dn_notification_1,
