@@ -385,7 +385,7 @@ for region in regions:
                         for tag in [
                             (T_STOP_DATE, dn_stop_date, r['odn_action_date']),
                             (T_NOTIFICATION_1, dn_notification_1, r['odn_notification_1']),
-                            (T_NOTIFICATION_2, dn_notification_2, r['odn_notification_2'],)
+                            (T_NOTIFICATION_2, dn_notification_2, r['odn_notification_2']),
                             (T_NOTIFICATION_3, dn_notification_3, r['odn_notification_3']),
                         ]:
                             if tag[1] != tag[2]:
