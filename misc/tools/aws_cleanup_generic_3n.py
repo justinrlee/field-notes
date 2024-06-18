@@ -50,22 +50,24 @@ T_NOTIFICATION_1 = "aws_cleaner/notifications/1"
 T_NOTIFICATION_2 = "aws_cleaner/notifications/2"
 T_NOTIFICATION_3 = "aws_cleaner/notifications/3"
 
-def ec2_update_tag(instance_id, instance_name, region, key, value):
+def ec2_update_tag(instance_id, instance_name, region, key, value, old_value):
     # TODO: In the future, could batch this up, for now doing it one at a time
     if dry_run:
-        print("DRY RUN: Skipping update of tag on {0} [{1}] in region {2}: setting {3} to {4}".format(
+        print("DRY RUN: Skipping update of tag on {0} [{1}] in region {2}: setting {3} from {5} to {4}".format(
             instance_name,
             instance_id,
             region,
             key,
-            value))
+            value,
+            old_value))
     else:
         print("Updating tag on {0} [{1}] in region {2}: setting {3} to {4}".format(
             instance_name,
             instance_id,
             region,
             key,
-            value))
+            value,
+            old_value))
         # This is super sloppy; right now we're relying on the fact that this is called after ec2_client has created for the relevant region
         # Later could either pass it in, or create an array of clients for regions
         # str(value) takes care of converting datetime.date to string in isoformat '2024-01-01'
@@ -395,6 +397,7 @@ for region in regions:
                                     region=region,
                                     key=tag[0],
                                     value=tag[2],
+                                    old_value=tag[1],
                                 )
 
                         message = notify_messages[r['result']].format(
@@ -435,6 +438,7 @@ for region in regions:
                                 region=region,
                                 key=T_TERMINATE_DATE,
                                 value=d_run_date + datetime.timedelta(days = DEFAULT_TERMINATE_DAYS),
+                                old_value = None
                             )
 
                             # TODO: Add log for this?
@@ -473,6 +477,7 @@ for region in regions:
                                     region=region,
                                     key=tag[0],
                                     value=tag[2],
+                                    old_value=tag[1],
                                 )
 
                         message = notify_messages[r['result']].format(
@@ -565,7 +570,25 @@ for region in regions:
 
 print("")
 print("Today is {}".format(d_run_date))
-print("Notification List:")
+# print("Notification List:")
 
-for item in detailed_log:
+ignore_list = [x for x in detailed_log if x['action'] == 'IGNORE']
+stop_list = [x for x in detailed_log if x['action'] == 'STOP']
+terminate_list = [x for x in detailed_log if x['action'] == 'TERMINATE']
+alt_list = [x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TERMINATE')]
+
+print("IGNORE List")
+for item in ignore_list:
+    print(item)
+
+print("STOP List")
+for item in stop_list:
+    print(item)
+
+print ("TERMINATE List")
+for item in terminate_list:
+    print(item)
+
+print ("ALTERNATE List")
+for item in alt_list:
     print(item)
