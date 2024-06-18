@@ -113,6 +113,17 @@ def determine_action(
         i_default_days,
         i_max_days
     ):
+
+    if debug:
+        print("idn_action_date:[{idn_action_date}], idn_notification_1:[{idn_notification_1}], idn_notification_2:[{idn_notification_2}], idn_notification_3:[{idn_notification_3}], i_default_days:[{i_default_days}], i_max_days:[{i_max_days}]".format(
+            idn_action_date = idn_action_date,
+            idn_notification_1 = idn_notification_1,
+            idn_notification_2 = idn_notification_2,
+            idn_notification_3 = idn_notification_3,
+            i_default_days = i_default_days,
+            i_max_days = i_max_days,
+        ))
+
     if idn_action_date is None:
         message = "Set unset date"
         return {
@@ -316,6 +327,7 @@ parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--tag-only', action='store_true')
 parser.add_argument('--full', action='store_true')
 parser.add_argument('--override-stop-date', action='store_true')
+parser.add_argument('--debug', action='store_true')
 
 args = parser.parse_args()
 
@@ -328,6 +340,7 @@ search_filter = DEFAULT_SEARCH_FILTER if args.full else test_filter
 use_test_region_filter = not args.full
 dry_run = args.dry_run
 tag_only = args.tag_only
+debug = args.debug
 
 override_stop_date = args.override_stop_date
 
