@@ -133,7 +133,7 @@ def determine_action(
             'result': Result.RESET_ACTION_DATE
         }
 
-    elif idn_action_date < d_run_date:
+    elif idn_action_date <= d_run_date:
         if idn_notification_1 is None:
             message = "Set stop date to today + 3 (missing notifications)"
             return {
