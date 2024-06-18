@@ -166,9 +166,9 @@ def determine_action(
         else:
             message = "Complete action"
             return {
-                'odn_notification_1': None,
-                'odn_notification_2': None,
-                'odn_notification_3': None,
+                'odn_notification_1': dn_notification_1,
+                'odn_notification_2': dn_notification_2,
+                'odn_notification_3': dn_notification_3,
                 'odn_action_date': d_run_date,
                 'result': Result.COMPLETE_ACTION
             }
@@ -220,6 +220,7 @@ class Result(str, enum.Enum):
     ADD_ACTION_DATE             = "add_action_date"
     RESET_ACTION_DATE           = "reset_action_date"
     COMPLETE_ACTION             = "complete_action"
+    TRANSITION_ACTION           = "transition_action"
     PAST_BUMP_NOTIFICATION_1    = "past_bump_notification_1"
     PAST_BUMP_NOTIFICATION_2    = "past_bump_notification_2"
     PAST_BUMP_NOTIFICATION_3    = "past_bump_notification_3"
@@ -243,9 +244,10 @@ notify_messages = {
     Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
     Result.RESET_ACTION_DATE           : "RESET_ACTION_DATE: Updated tag [{tag}] (date too far out): {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date set to {date}",
     Result.COMPLETE_ACTION             : "COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
-    Result.PAST_BUMP_NOTIFICATION_1       : "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-    Result.PAST_BUMP_NOTIFICATION_2       : "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-    Result.PAST_BUMP_NOTIFICATION_3       : "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+    Result.TRANSITION_ACTION             : "TRANSITION_ACTION: Added new {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}]) on {date}",
+    Result.PAST_BUMP_NOTIFICATION_1       : "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
+    Result.PAST_BUMP_NOTIFICATION_2       : "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
+    Result.PAST_BUMP_NOTIFICATION_3       : "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
     
     Result.SEND_NOTIFICATION_1       : "SEND_NOTIFICATION_1: LOREM IPSUM",
     Result.SEND_NOTIFICATION_2       : "SEND_NOTIFICATION_2: LOREM IPSUM",
@@ -448,11 +450,11 @@ for region in regions:
 
                         if r['result'] == Result.COMPLETE_ACTION:
                             # On complete, stop the instance
-                            # New tags already set, aside from termination date tag
-                            ec2_stop(instance_id=instance_id,
-                                     instance_name=instance_name,
-                                     region=region,
-                                     )
+                            ec2_stop(
+                                instance_id=instance_id,
+                                instance_name=instance_name,
+                                region=region,
+                            )
 
                             ec2_update_tag(
                                 instance_id=instance_id,
@@ -463,7 +465,43 @@ for region in regions:
                                 old_value = None
                             )
 
-                            # TODO: Add log for this?
+                            message = notify_messages[Result.TRANSITION_ACTION].format(
+                                instance_type = "EC2",
+                                instance_name = instance_name,
+                                instance_id = instance_id,
+                                region = region,
+                                action = "TERMINATE",
+                                tag = T_STOP_DATE,
+                                date = d_run_date + datetime.timedelta(days = DEFAULT_TERMINATE_DAYS),
+                            )
+
+                            add_to_log(
+                                email = owner_email,
+                                instance_type = "EC2",
+                                instance_name = instance_name,
+                                instance_id = instance_id,
+                                region = region,
+                                action = "TERMINATE",
+                                tag = T_TERMINATE_DATE,
+                                result = Result.TRANSITION_ACTION,
+                                old_date = None,
+                                new_date = d_run_date + datetime.timedelta(days = DEFAULT_TERMINATE_DAYS),
+                                message = message,
+                            )
+
+                            for tag in [
+                                (T_NOTIFICATION_1, dn_notification_1, None),
+                                (T_NOTIFICATION_2, dn_notification_2, None),
+                                (T_NOTIFICATION_3, dn_notification_3, None),
+                            ]:
+                                ec2_update_tag(
+                                    instance_id=instance_id,
+                                    instance_name=instance_name,
+                                    region=region,
+                                    key=tag[0],
+                                    value=tag[2],
+                                    old_value=tag[1],
+                                )
                     else:
                         pass # Placeholder for 'override' behavior
 
