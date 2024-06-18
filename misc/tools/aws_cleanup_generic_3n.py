@@ -462,7 +462,17 @@ for region in regions:
                         )
 
                         if r['result'] == Result.COMPLETE_ACTION:
-                            # On complete, stop the instance
+                            # On complete:
+                            # Up till now, have:
+                            # * Left notification tags alone (tags are from stop notifications)
+                            # * Added a STOP/COMPLETE ACTION log
+                            # Now need to do the following: # TODO FIX THIS LOGIC, something is missing here
+                            # * Stop the instance
+                            # * TODO: Add "Summary stop tag"
+                            # * Add a termination date
+                            # * Set notification tags back to None
+                            # * Add a TERMINATE/TRANSITION log
+                            # * Add a TERMINATE/Add tag log?
                             ec2_stop(
                                 instance_id=instance_id,
                                 instance_name=instance_name,
@@ -484,8 +494,8 @@ for region in regions:
                                 instance_id = instance_id,
                                 region = region,
                                 action = "TERMINATE",
-                                tag = T_STOP_DATE,
-                                date = d_run_date + datetime.timedelta(days = DEFAULT_TERMINATE_DAYS),
+                                tag = T_TERMINATE_DATE,
+                                date = d_run_date, # Date of transition, not new terminate date
                             )
 
                             add_to_log(
