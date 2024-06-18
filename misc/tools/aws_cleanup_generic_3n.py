@@ -341,8 +341,8 @@ for region in regions:
         else:
             tags = {tag["Key"]:tag["Value"] for tag in instance["Tags"]}
 
-        autoscaling_group = value_or_none(T_AUTOSCALING_GROUP)
-        exception = value_or_none(T_EXCEPTION)
+        autoscaling_group = value_or_none(tags, T_AUTOSCALING_GROUP)
+        exception = value_or_none(tags, T_EXCEPTION)
 
         # 'dn_' means 'either a Datetime.date or None'
         dn_stop_date = date_or_none(tags, T_STOP_DATE)
@@ -351,13 +351,13 @@ for region in regions:
         dn_notification_2 = date_or_none(tags, T_NOTIFICATION_2)
         dn_notification_3 = date_or_none(tags, T_NOTIFICATION_3)
 
-        instance_name = value_or_none(T_NAME)
+        instance_name = value_or_none(tags, T_NAME)
         
         # Rough equivalent to coalesce
-        owner_email = value_or_none(T_OWNER_EMAIL) \
-            or value_or_none(T_EMAIL) \
-            or value_or_none(T_DIVVY_OWNER) \
-            or value_or_none(T_DIVVY_LAST_MODIFIED_BY)
+        owner_email = value_or_none(tags, T_OWNER_EMAIL) \
+            or value_or_none(tags, T_EMAIL) \
+            or value_or_none(tags, T_DIVVY_OWNER) \
+            or value_or_none(tags, T_DIVVY_LAST_MODIFIED_BY)
         
         print("{} is {}".format(instance_name, state))
 
