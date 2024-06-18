@@ -121,7 +121,7 @@ def determine_action(
             'result': Result.ADD_ACTION_DATE
         }
 
-    elif idn_action_date - d_run_date > i_max_days:
+    elif idn_action_date - d_run_date > datetime.timedelta(days=i_max_days):
         message = "Set to max"
         return {
             'odn_notification_1': None,
