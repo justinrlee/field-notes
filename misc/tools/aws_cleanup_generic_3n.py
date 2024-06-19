@@ -673,12 +673,10 @@ def sort_key(x):
         x['instance_name'],
     ])
 
-
-ignore_list = [x for x in detailed_log if x['action'] == 'IGNORE'].sort(key=sort_key)
-stop_list = [x for x in detailed_log if x['action'] == 'STOP'].sort(key=sort_key)
-terminate_list = [x for x in detailed_log if x['action'] == 'TERMINATE'].sort(key=sort_key)
-alt_list = [x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TERMINATE')].sort(key=sort_key)
-
+ignore_list = sorted([x for x in detailed_log if x['action'] == 'IGNORE'], key=sort_key)
+stop_list = sorted([x for x in detailed_log if x['action'] == 'STOP'], key=sort_key)
+terminate_list = sorted([x for x in detailed_log if x['action'] == 'TERMINATE'], key=sort_key)
+alt_list = sorted([x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TERMINATE')], key=sort_key)
 
 print("IGNORE List")
 if ignore_list is not None:
