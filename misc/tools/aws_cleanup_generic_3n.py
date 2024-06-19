@@ -322,7 +322,7 @@ def date_or_none(tags, tag):
 
 # Parse Arguments
 parser = argparse.ArgumentParser(description="AWS Cleanup Script")
-parser.add_argument('--rundate')
+parser.add_argument('--run-date')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--tag-only', action='store_true')
 parser.add_argument('--full', action='store_true')
@@ -332,8 +332,8 @@ parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
 d_run_date = D_TODAY
-if args.rundate:
-    d_run_date = datetime.date.fromisoformat(args.rundate)
+if args.run_date:
+    d_run_date = datetime.date.fromisoformat(args.run_date)
 
 search_filter = DEFAULT_SEARCH_FILTER if args.full else test_filter
 
