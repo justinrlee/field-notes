@@ -45,7 +45,9 @@ T_NAME = "Name"
 # T_NOTIFICATION_DATE = "cleanup_notification_date"
 T_EXCEPTION = "aws_cleaner/cleanup_exception"
 T_STOP_DATE = "aws_cleaner/stop_date"
+T_STOP_LOGS = "aws_cleaner/stop_notification_log"
 T_TERMINATE_DATE = "aws_cleaner/terminate_date"
+T_TERMINATE_LOGS = "aws_cleaner/terminate_notification_log"
 T_NOTIFICATION_1 = "aws_cleaner/notifications/1"
 T_NOTIFICATION_2 = "aws_cleaner/notifications/2"
 T_NOTIFICATION_3 = "aws_cleaner/notifications/3"
@@ -488,6 +490,16 @@ for region in regions:
                                 old_value = None
                             )
 
+                            # Summary stop log
+                            ec2_update_tag(
+                                instance_id=instance_id,
+                                instance_name=instance_name,
+                                region=region,
+                                key=T_STOP_LOGS,
+                                value="notified:{},{},{};stopped:{}".format(dn_notification_1,dn_notification_2,dn_notification_3,d_run_date),
+                                old_value = None
+                            )
+
                             message = notify_messages[Result.TRANSITION_ACTION].format(
                                 instance_type = "EC2",
                                 instance_name = instance_name,
@@ -594,6 +606,15 @@ for region in regions:
                                      region=region,
                                      )
 
+                            # Summary stop log
+                            ec2_update_tag(
+                                instance_id=instance_id,
+                                instance_name=instance_name,
+                                region=region,
+                                key=T_TERMINATE_LOGS,
+                                value="notified:{},{},{};terminated:{}".format(dn_notification_1,dn_notification_2,dn_notification_3,d_run_date),
+                                old_value = None
+                            )
                             # TODO: Add additional log for this?
                     else:
                         pass # Placeholder for 'override' behavior
