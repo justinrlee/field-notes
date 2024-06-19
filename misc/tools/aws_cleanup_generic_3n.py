@@ -681,17 +681,21 @@ alt_list = [x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TE
 
 
 print("IGNORE List")
-for item in ignore_list:
-    print(item)
+if ignore_list is not None:
+    for item in ignore_list:
+        print(item)
 
 print("STOP List")
-for item in stop_list:
-    print(item)
+if stop_list is not None:
+    for item in stop_list:
+        print(item)
 
 print ("TERMINATE List")
-for item in terminate_list:
-    print(item)
+if terminate_list is not None:
+    for item in terminate_list:
+        print(item)
 
 print ("ALTERNATE List")
-for item in alt_list:
-    print(item)
+if alt_list is not None:
+    for item in alt_list:
+        print(item)
