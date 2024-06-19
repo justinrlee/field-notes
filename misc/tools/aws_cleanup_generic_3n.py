@@ -655,10 +655,30 @@ print("")
 print("Today is {}".format(d_run_date))
 # print("Notification List:")
 
-ignore_list = [x for x in detailed_log if x['action'] == 'IGNORE']
-stop_list = [x for x in detailed_log if x['action'] == 'STOP']
-terminate_list = [x for x in detailed_log if x['action'] == 'TERMINATE']
-alt_list = [x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TERMINATE')]
+# Arbitrary sort order, primarily for cleanliness in output:
+# * Email
+# * Type
+# * Region
+# * Action
+# * Result
+# * Name
+
+def sort_key(x):
+    return " ".join([
+        x['email'],
+        x['instance_type'],
+        x['region'],
+        x['action'],
+        x['result'],
+        x['instance_name'],
+    ])
+
+
+ignore_list = [x for x in detailed_log if x['action'] == 'IGNORE'].sort(key=sort_key)
+stop_list = [x for x in detailed_log if x['action'] == 'STOP'].sort(key=sort_key)
+terminate_list = [x for x in detailed_log if x['action'] == 'TERMINATE'].sort(key=sort_key)
+alt_list = [x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TERMINATE')].sort(key=sort_key)
+
 
 print("IGNORE List")
 for item in ignore_list:
