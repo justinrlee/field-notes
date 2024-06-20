@@ -447,19 +447,19 @@ if __name__ == "__main__":
     )
 
     NOTIFY_MESSAGES = {
-        Result.ADD_ACTION_DATE: "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
-        Result.RESET_ACTION_DATE: "RESET_ACTION_DATE: Updated tag [{tag}] (date too far out): {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date set to {date}",
-        Result.COMPLETE_ACTION: "COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
-        Result.TRANSITION_ACTION: "TRANSITION_ACTION: Added new {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}]) on {date}",
-        Result.PAST_BUMP_NOTIFICATION_1: "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
-        Result.PAST_BUMP_NOTIFICATION_2: "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
-        Result.PAST_BUMP_NOTIFICATION_3: "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
-        Result.SEND_NOTIFICATION_1: "SEND_NOTIFICATION_1: LOREM IPSUM",
-        Result.SEND_NOTIFICATION_2: "SEND_NOTIFICATION_2: LOREM IPSUM",
-        Result.SEND_NOTIFICATION_3: "SEND_NOTIFICATION_3: LOREM IPSUM",
-        Result.LOG_NO_NOTIFICATION: "LOG_NO_NOTIFICATION: LOREM IPSUM",
-        Result.IGNORE_OTHER_STATES: "IGNORE_OTHER_STATES: LOREM IPSUM",
-        Result.SKIP_EXCEPTION: "SKIP_EXCEPTION: LOREM IPSUM",
+        Result.ADD_ACTION_DATE: "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {new_date} to {state} {instance_type} {instance_name} [{instance_id}] in region {region}",
+        Result.RESET_ACTION_DATE: "RESET_ACTION_DATE: Updated tag [{tag}] on {state} {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date changed from {old_date} to {new_date}",
+        Result.COMPLETE_ACTION: "COMPLETE_ACTION: Completed {action} on {state} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
+        Result.TRANSITION_ACTION: "TRANSITION_ACTION: Added new {action} on {state} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}]) on {new_date}",
+        Result.PAST_BUMP_NOTIFICATION_1: "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}] because missing first notification: will {action} {state} {instance_type} {instance_name} [{instance_id}] in region {region} on {new_date} (previously set to {old_date})",
+        Result.PAST_BUMP_NOTIFICATION_2: "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}] because missing second notification: will {action} {state} {instance_type} {instance_name} [{instance_id}] in region {region} on {new_date} (previously set to {old_date}",
+        Result.PAST_BUMP_NOTIFICATION_3: "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}] because missing third notification: will {action} {state} {instance_type} {instance_name} [{instance_id}] in region {region} on {new_date} (previously set to {old_date}",
+        Result.SEND_NOTIFICATION_1: "SEND_NOTIFICATION_1: Sending first {action} notification for {state} {instance_type} {instance_name} [{instance_id}] in region {region}: will {action} on {new_date}",
+        Result.SEND_NOTIFICATION_2: "SEND_NOTIFICATION_2: Sending second {action} notification for {state} {instance_type} {instance_name} [{instance_id}] in region {region}: will {action} on {new_date}",
+        Result.SEND_NOTIFICATION_3: "SEND_NOTIFICATION_3: Sending third {action} notification for {state} {instance_type} {instance_name} [{instance_id}] in region {region}: will {action} on {new_date}",
+        Result.LOG_NO_NOTIFICATION: "LOG_NO_NOTIFICATION: Will {action} {state} {instance_type} {instance_name} [{instance_id}] in region {region} on {new_date}",
+        Result.IGNORE_OTHER_STATES: "IGNORE_OTHER_STATES: Ignoring {instance_type} {instance_name} [{instance_id}] in region {region} because its state is {state}",
+        Result.SKIP_EXCEPTION: "SKIP_EXCEPTION: Skipping {instance_type} {instance_name} [{instance_id}] in region {region} because it has {tag} set", # Not currently passing in exception value, because it would require adding a different passed-in parameters to NOTIFY_MESSAGES
         # Result.PAST_EXPIRED_NOTIFICATION   : "PAST_EXPIRED_NOTIFICATION: Updated tag [{tag}]: Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
         # Result.FUTURE_NORMAL_NOTIFY        : "FUTURE_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
         # Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
@@ -491,7 +491,7 @@ if __name__ == "__main__":
     # 
     # We won't send most stuff to Slack, but use this to validate that connection is okay and indicate the script is starting
     logging.info("Running cleaner on {}".format(d_run_date))
-    slack_send_text(slack_token, channel_id, "Running cleaner on {}".format(d_run_date))
+    slack_send_text(slack_token, channel_id, "Running cleaner using run date of {}".format(d_run_date))
 
     if not args.full:
         # use test region filter
@@ -619,7 +619,9 @@ if __name__ == "__main__":
                                 region=region,
                                 action="STOP",
                                 tag=T_STOP_DATE,
-                                date=r["odn_action_date"],
+                                old_date=dn_stop_date,
+                                new_date=r["odn_action_date"],
+                                state=state,
                             )
 
                             detailed_log.append(
@@ -693,7 +695,9 @@ if __name__ == "__main__":
                                     region=region,
                                     action="TERMINATE",
                                     tag=T_TERMINATE_DATE,
-                                    date=d_run_date,  # Date of transition, not new terminate date
+                                    old_date=d_run_date, # Date of transition, not new terminate date
+                                    new_date=d_run_date + datetime.timedelta(days=DEFAULT_TERMINATE_DAYS), # New terminate date
+                                    state="stopped", # Have just stopped the instance
                                 )
 
                                 detailed_log.append(
@@ -791,7 +795,9 @@ if __name__ == "__main__":
                                 region=region,
                                 action="TERMINATE",
                                 tag=T_STOP_DATE,
-                                date=r["odn_action_date"],
+                                old_date=dn_terminate_date
+                                new_date=r["odn_action_date"],
+                                state=state,
                             )
 
                             detailed_log.append(
@@ -846,7 +852,9 @@ if __name__ == "__main__":
                             region=region,
                             action="IGNORE",
                             tag=state,  # This is a hack
-                            date=d_run_date,
+                            old_date=d_run_date,
+                            new_date=d_run_date,
+                            state=state,
                         )
 
                         detailed_log.append(
@@ -872,8 +880,10 @@ if __name__ == "__main__":
                         instance_id=instance_id,
                         region=region,
                         action="SKIP_EXCEPTION",
-                        tag=exception,  # This is a hack
-                        date=d_run_date,
+                        tag=exception,
+                        old_date=d_run_date,
+                        new_date=d_run_date,
+                        state=state,
                     )
 
                     detailed_log.append(
@@ -884,7 +894,7 @@ if __name__ == "__main__":
                             instance_id=instance_id,
                             region=region,
                             action="SKIP_EXCEPTION",
-                            tag=exception,  # again, this is a hack
+                            tag=exception, # This is a hack
                             result=Result.SKIP_EXCEPTION,
                             old_date=d_run_date,
                             new_date=d_run_date,
@@ -899,6 +909,7 @@ if __name__ == "__main__":
                         autoscaling_group,
                     )
                 )
+                # TODO: Add log for these
 
     logging.info("Today is {}".format(d_run_date))
     # logging.info("Notification List:")
