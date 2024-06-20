@@ -795,7 +795,7 @@ if __name__ == "__main__":
                                 region=region,
                                 action="TERMINATE",
                                 tag=T_STOP_DATE,
-                                old_date=dn_terminate_date
+                                old_date=dn_terminate_date,
                                 new_date=r["odn_action_date"],
                                 state=state,
                             )
