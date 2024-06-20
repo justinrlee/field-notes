@@ -74,4 +74,4 @@ helm repo add confluentinc https://packages.confluent.io/helm \
 
 # Install Flink Operator
 helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-${FLINK_OPERATOR_VERSION}/ \
-  && helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator -namespace confluent
+  && helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace confluent
