@@ -471,6 +471,8 @@ if __name__ == "__main__":
 
     logging.info("Using regions: {}".format(regions))
 
+    detailed_log = list()
+
     for region in regions:
         logging.info("Processing region {}".format(region))
         ec2_client = boto3.client("ec2", region_name=region)
@@ -488,7 +490,6 @@ if __name__ == "__main__":
         ]
 
         # https://confluentinc.atlassian.net/wiki/spaces/~457145999/pages/3318745562/Cloud+Spend+Reduction+Proposal+AWS+Solutions+Engineering+Account
-        detailed_log = list()
         for instance in ec2_instances:
             state = instance["State"]["Name"]
             instance_id = instance["InstanceId"]
