@@ -952,19 +952,39 @@ if __name__ == "__main__":
     if ignore_list is not None:
         for item in ignore_list:
             logging.info(item)
+            slack_send_text(
+                token=slack_token
+                channel=channel_id,
+                text="{owner}: {message}".format(owner=owner, message=message)
+            )
 
     logging.info("STOP List:")
     if stop_list is not None:
         for item in stop_list:
             logging.info(item)
+            slack_send_text(
+                token=slack_token
+                channel=channel_id,
+                text="{owner}: {message}".format(owner=owner, message=message)
+            )
 
     logging.info("TERMINATE List:")
     if terminate_list is not None:
         for item in terminate_list:
             logging.info(item)
+            slack_send_text(
+                token=slack_token
+                channel=channel_id,
+                text="{owner}: {message}".format(owner=owner, message=message)
+            )
 
     logging.info("ALTERNATE List:")
     if alt_list is not None:
         for item in alt_list:
             logging.info(item)
+            slack_send_text(
+                token=slack_token
+                channel=channel_id,
+                text="{owner}: {message}".format(owner=owner, message=message)
+            )
 
