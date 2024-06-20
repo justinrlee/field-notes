@@ -490,8 +490,9 @@ if __name__ == "__main__":
     # Main process run
     # 
     # We won't send most stuff to Slack, but use this to validate that connection is okay and indicate the script is starting
-    logging.info("Running cleaner on {}".format(d_run_date))
-    slack_send_text(slack_token, channel_id, "Running cleaner using run date of {}".format(d_run_date))
+    start_text = "Running cleaner on {}".format(d_run_date) if d_run_date == D_TODAY else "Running cleaner on simulated run date of {}".format(d_run_date)
+    logging.info(start_text)
+    slack_send_text(slack_token, channel_id, start_text)
 
     if not args.full:
         # use test region filter
