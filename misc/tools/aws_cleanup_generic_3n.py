@@ -447,26 +447,19 @@ if __name__ == "__main__":
     )
 
     NOTIFY_MESSAGES = {
-        Result.ADD_ACTION_DATE: "ADD_ACTION_DATE: Added {action} date to {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}, set to {new_date} (tag [{tag}])",
-        Result.RESET_ACTION_DATE: "RESET_ACTION_DATE: Updating {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: {action} date changed from {old_date} to {new_date} (tag [{tag}])",
-        Result.COMPLETE_ACTION: "COMPLETE_ACTION: Completed {action} on {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} (tag [{tag}])",
-        Result.TRANSITION_ACTION: "TRANSITION_ACTION: Added new {action} on {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (tag [{tag}])",
-        Result.PAST_BUMP_NOTIFICATION_1: "PAST_BUMP_NOTIFICATION_1: Missing first notification: will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (previously set to {old_date}) (tag [{tag}])",
-        Result.PAST_BUMP_NOTIFICATION_2: "PAST_BUMP_NOTIFICATION_2: Missing second notification: will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (previously set to {old_date} (tag [{tag}])",
-        Result.PAST_BUMP_NOTIFICATION_3: "PAST_BUMP_NOTIFICATION_3: Missing third notification: will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (previously set to {old_date} (tag [{tag}])",
-        Result.SEND_NOTIFICATION_1: "SEND_NOTIFICATION_1: Sending first {action} notification for {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: will {action} on {new_date} (tag [{tag}])",
-        Result.SEND_NOTIFICATION_2: "SEND_NOTIFICATION_2: Sending second {action} notification for {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: will {action} on {new_date} (tag [{tag}])",
-        Result.SEND_NOTIFICATION_3: "SEND_NOTIFICATION_3: Sending third {action} notification for {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: will {action} on {new_date} (tag [{tag}])",
-        Result.LOG_NO_NOTIFICATION: "LOG_NO_NOTIFICATION: Will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (tag [{tag}])",
+        Result.ADD_ACTION_DATE: "ADD_ACTION_DATE: Added {action} date to {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}, set to {new_date} (tag `[{tag}]`)",
+        Result.RESET_ACTION_DATE: "RESET_ACTION_DATE: Updating {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: {action} date changed from {old_date} to {new_date} (tag `[{tag}]`)",
+        Result.COMPLETE_ACTION: "COMPLETE_ACTION: Completed {action} on {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} (tag `[{tag}]`)",
+        Result.TRANSITION_ACTION: "TRANSITION_ACTION: Added new {action} on {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (tag `[{tag}]`)",
+        Result.PAST_BUMP_NOTIFICATION_1: "PAST_BUMP_NOTIFICATION_1: Missing first notification: will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (previously set to {old_date}) (tag `[{tag}]`)",
+        Result.PAST_BUMP_NOTIFICATION_2: "PAST_BUMP_NOTIFICATION_2: Missing second notification: will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (previously set to {old_date} (tag `[{tag}]`)",
+        Result.PAST_BUMP_NOTIFICATION_3: "PAST_BUMP_NOTIFICATION_3: Missing third notification: will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (previously set to {old_date} (tag `[{tag}]`)",
+        Result.SEND_NOTIFICATION_1: "SEND_NOTIFICATION_1: Sending first {action} notification for {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: will {action} on {new_date} (tag `[{tag}]`)",
+        Result.SEND_NOTIFICATION_2: "SEND_NOTIFICATION_2: Sending second {action} notification for {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: will {action} on {new_date} (tag `[{tag}]`)",
+        Result.SEND_NOTIFICATION_3: "SEND_NOTIFICATION_3: Sending third {action} notification for {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region}: will {action} on {new_date} (tag `[{tag}]`)",
+        Result.LOG_NO_NOTIFICATION: "LOG_NO_NOTIFICATION: Will {action} {state} {instance_type} instance '{instance_name}' [{instance_id}] in region {region} on {new_date} (tag `[{tag}]`)",
         Result.IGNORE_OTHER_STATES: "IGNORE_OTHER_STATES: Ignoring {instance_type} {instance_name} [{instance_id}] in region {region} because its state is {state}",
         Result.SKIP_EXCEPTION: "SKIP_EXCEPTION: Skipping {instance_type} instance '{instance_name}' [{instance_id}] in region {region} because it has {tag} set", # Not currently passing in exception value, because it would require adding a different passed-in parameters to NOTIFY_MESSAGES
-        # Result.PAST_EXPIRED_NOTIFICATION   : "PAST_EXPIRED_NOTIFICATION: Updated tag [{tag}]: Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-        # Result.FUTURE_NORMAL_NOTIFY        : "FUTURE_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
-        # Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-        # Result.WINDOW_NORMAL_NOTIFY        : "WINDOW_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
-        # Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-        # Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
-        # Result.EXCEPTION                   : "EXCEPTION: {instance_type} {instance_name} [{instance_id}] in region {region} has an exception",
     }
 
     d_run_date = D_TODAY
