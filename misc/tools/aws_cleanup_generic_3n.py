@@ -5,19 +5,29 @@
 # On fresh Ubuntu instance, install prereqs:
 # sudo apt-get update; sudo apt-get install -y python3-pip;
 # python3 -m pip install boto3
-import boto3
-import datetime
 import enum
+import boto3
+import logging
 import argparse
+import datetime
 
+
+###############################
+# Global and System Variables #
+###############################
 # Run only against instances in a specific region, for testing
-test_region_override = ['us-east-1', 'us-east-2']
+TEST_REGION_OVERRIDE = [
+    "us-east-1",
+    "us-east-2",
+]
 
 # Run only against instances matching specific tags
-test_filter = [
+TEST_FILTER = [
     {
-        'Name': 'tag:justin',
-        'Values': ['test']
+        "Name": "tag:justin",
+        "Values": [
+            "test",
+        ],
     },
 ]
 
@@ -30,7 +40,7 @@ DEFAULT_STOP_DAYS = 31
 MAX_TERMINATE_DAYS = 62
 DEFAULT_TERMINATE_DAYS = 31
 
-DEFAULT_SEARCH_FILTER = []
+DEFAULT_SEARCH_FILTER = list()
 
 # D_MAX = datetime.date.min
 D_TODAY = datetime.date.today()
@@ -52,199 +62,280 @@ T_NOTIFICATION_1 = "aws_cleaner/notifications/1"
 T_NOTIFICATION_2 = "aws_cleaner/notifications/2"
 T_NOTIFICATION_3 = "aws_cleaner/notifications/3"
 
-def ec2_update_tag(instance_id, instance_name, region, key, value, old_value):
+
+#####################
+# Generic Functions #
+#####################
+def sort_key(x):
+    return " ".join(
+        [
+            x["email"],
+            x["instance_type"],
+            x["region"],
+            x["action"],
+            x["result"],
+            x["instance_name"],
+        ]
+    )
+
+
+def ec2_update_tag(
+    instance_id,
+    instance_name,
+    region,
+    key,
+    value,
+    old_value,
+    args,
+):
     # TODO: In the future, could batch this up, for now doing it one at a time
-    if dry_run:
-        print("DRY RUN: Skipping update of tag on {0} [{1}] in region {2}: setting {3} from {5} to {4}".format(
-            instance_name,
-            instance_id,
-            region,
-            key,
-            value,
-            old_value))
+    if args.dry_run:
+        logging.info(
+            "DRY RUN: Skipping update of tag on {0} [{1}] in region {2}: setting {3} from {5} to {4}".format(
+                instance_name,
+                instance_id,
+                region,
+                key,
+                value,
+                old_value,
+            )
+        )
     else:
-        print("Updating tag on {0} [{1}] in region {2}: setting {3} to {4}".format(
-            instance_name,
-            instance_id,
-            region,
-            key,
-            value,
-            old_value))
+        logging.info(
+            "Updating tag on {0} [{1}] in region {2}: setting {3} to {4}".format(
+                instance_name,
+                instance_id,
+                region,
+                key,
+                value,
+                old_value,
+            )
+        )
         # This is super sloppy; right now we're relying on the fact that this is called after ec2_client has created for the relevant region
         # Later could either pass it in, or create an array of clients for regions
         # str(value) takes care of converting datetime.date to string in isoformat '2024-01-01'
         ec2_client.create_tags(
-            Resources = [instance_id],
-            Tags = [{'Key': key, 'Value': str(value)}]
+            Resources=[instance_id],
+            Tags=[
+                {
+                    "Key": key,
+                    "Value": str(value),
+                }
+            ],
         )
 
-def ec2_stop(instance_id, instance_name, region):
-    if dry_run or tag_only:
-        print("DRY RUN: Stopping instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
+
+def ec2_stop(
+    instance_id,
+    instance_name,
+    region,
+    args,
+):
+    if args.dry_run or args.tag_only:
+        logging.info(
+            "DRY RUN: Stopping instance {0} [{1}] in region {2}".format(
+                instance_name,
+                instance_id,
+                region,
+            )
+        )
     else:
-        print("Stopping instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
+        logging.info(
+            "Stopping instance {0} [{1}] in region {2}".format(
+                instance_name,
+                instance_id,
+                region,
+            )
+        )
         ec2_client.stop_instances(InstanceIds=[instance_id])
 
-def ec2_terminate(instance_id, instance_name, region):
-    if dry_run or tag_only:
-        print("DRY RUN: Terminating instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
+
+def ec2_terminate(
+    instance_id,
+    instance_name,
+    region,
+    args,
+):
+    if args.dry_run or args.tag_only:
+        logging.info(
+            "DRY RUN: Terminating instance {0} [{1}] in region {2}".format(
+                instance_name,
+                instance_id,
+                region,
+            )
+        )
     else:
-        print("Terminating instance {0} [{1}] in region {2}".format(instance_name, instance_id, region))
+        logging.info(
+            "Terminating instance {0} [{1}] in region {2}".format(
+                instance_name,
+                instance_id,
+                region,
+            )
+        )
         ec2_client.terminate_instances(InstanceIds=[instance_id])
 
-# Takes the following:
-    # idn_action_date: Currently set action date
-    # idn_notification_1: Current dn_notification_1
-    # idn_notification_2: Current dn_notification_2
-    # idn_notification_3: Current dn_notification_3
-    # i_default_days: Default number of days
-    # i_max_days: Max number of days
-# Returns dict with the following:
-    # odn_notification_1: New dn_notification_1
-    # odn_notification_2: New dn_notification_2
-    # odn_notification_3: New dn_notification_3
-    # odn_action_date
-    # result ENUM
-# All actual changes (tags and/or instance modification) occurs in calling code, not here.
 
 def determine_action(
-        idn_action_date,
-        idn_notification_1,
-        idn_notification_2,
-        idn_notification_3,
-        i_default_days,
-        i_max_days
-    ):
-
-    if debug:
-        print("idn_action_date:[{idn_action_date}], idn_notification_1:[{idn_notification_1}], idn_notification_2:[{idn_notification_2}], idn_notification_3:[{idn_notification_3}], i_default_days:[{i_default_days}], i_max_days:[{i_max_days}]".format(
-            idn_action_date = idn_action_date,
-            idn_notification_1 = idn_notification_1,
-            idn_notification_2 = idn_notification_2,
-            idn_notification_3 = idn_notification_3,
-            i_default_days = i_default_days,
-            i_max_days = i_max_days,
-        ))
+    idn_action_date,
+    idn_notification_1,
+    idn_notification_2,
+    idn_notification_3,
+    i_default_days,
+    i_max_days,
+):
+    """
+    Takes the following:
+    idn_action_date: Currently set action date
+    idn_notification_1: Current dn_notification_1
+    idn_notification_2: Current dn_notification_2
+    idn_notification_3: Current dn_notification_3
+    i_default_days: Default number of days
+    i_max_days: Max number of days
+    Returns dict with the following:
+    odn_notification_1: New dn_notification_1
+    odn_notification_2: New dn_notification_2
+    odn_notification_3: New dn_notification_3
+    odn_action_date
+    result ENUM
+    All actual changes (tags and/or instance modification) occurs in calling code, not here.
+    """
+    logging.debug(
+        "idn_action_date:[{idn_action_date}], idn_notification_1:[{idn_notification_1}], idn_notification_2:[{idn_notification_2}], idn_notification_3:[{idn_notification_3}], i_default_days:[{i_default_days}], i_max_days:[{i_max_days}]".format(
+            idn_action_date=idn_action_date,
+            idn_notification_1=idn_notification_1,
+            idn_notification_2=idn_notification_2,
+            idn_notification_3=idn_notification_3,
+            i_default_days=i_default_days,
+            i_max_days=i_max_days,
+        )
+    )
 
     if idn_action_date is None:
         message = "Set unset date"
         return {
-            'odn_notification_1': None,
-            'odn_notification_2': None,
-            'odn_notification_3': None,
-            'odn_action_date': d_run_date + datetime.timedelta(days = i_default_days),
-            'result': Result.ADD_ACTION_DATE
+            "odn_notification_1": None,
+            "odn_notification_2": None,
+            "odn_notification_3": None,
+            "odn_action_date": d_run_date + datetime.timedelta(days=i_default_days),
+            "result": Result.ADD_ACTION_DATE,
         }
 
     elif idn_action_date - d_run_date > datetime.timedelta(days=i_max_days):
         message = "Set to max"
         return {
-            'odn_notification_1': None,
-            'odn_notification_2': None,
-            'odn_notification_3': None,
-            'odn_action_date': d_run_date + datetime.timedelta(days = i_max_days),
-            'result': Result.RESET_ACTION_DATE
+            "odn_notification_1": None,
+            "odn_notification_2": None,
+            "odn_notification_3": None,
+            "odn_action_date": d_run_date + datetime.timedelta(days=i_max_days),
+            "result": Result.RESET_ACTION_DATE,
         }
 
     elif idn_action_date <= d_run_date:
         if idn_notification_1 is None:
             message = "Set stop date to today + 3 (missing notifications)"
             return {
-                'odn_notification_1': d_run_date,
-                'odn_notification_2': None,
-                'odn_notification_3': None,
-                'odn_action_date': d_run_date + datetime.timedelta(days = 3),
-                'result': Result.PAST_BUMP_NOTIFICATION_1
+                "odn_notification_1": d_run_date,
+                "odn_notification_2": None,
+                "odn_notification_3": None,
+                "odn_action_date": d_run_date + datetime.timedelta(days=3),
+                "result": Result.PAST_BUMP_NOTIFICATION_1,
             }
-        elif  idn_notification_2 is None:
+        elif idn_notification_2 is None:
             message = "Set stop date to today + 2 (missing notifications)"
             return {
-                'odn_notification_1': idn_notification_1,
-                'odn_notification_2': d_run_date,
-                'odn_notification_3': None,
-                'odn_action_date': d_run_date + datetime.timedelta(days = 2),
-                'result': Result.PAST_BUMP_NOTIFICATION_2
+                "odn_notification_1": idn_notification_1,
+                "odn_notification_2": d_run_date,
+                "odn_notification_3": None,
+                "odn_action_date": d_run_date + datetime.timedelta(days=2),
+                "result": Result.PAST_BUMP_NOTIFICATION_2,
             }
 
-        elif  idn_notification_3 is None:
+        elif idn_notification_3 is None:
             message = "Set stop date to today + 1 (missing notifications)"
             return {
-                'odn_notification_1': idn_notification_1,
-                'odn_notification_2': idn_notification_2,
-                'odn_notification_3': d_run_date,
-                'odn_action_date': d_run_date + datetime.timedelta(days = 1),
-                'result': Result.PAST_BUMP_NOTIFICATION_3
+                "odn_notification_1": idn_notification_1,
+                "odn_notification_2": idn_notification_2,
+                "odn_notification_3": d_run_date,
+                "odn_action_date": d_run_date + datetime.timedelta(days=1),
+                "result": Result.PAST_BUMP_NOTIFICATION_3,
             }
 
         else:
             message = "Complete action"
             return {
-                'odn_notification_1': dn_notification_1,
-                'odn_notification_2': dn_notification_2,
-                'odn_notification_3': dn_notification_3,
-                'odn_action_date': d_run_date,
-                'result': Result.COMPLETE_ACTION
+                "odn_notification_1": dn_notification_1,
+                "odn_notification_2": dn_notification_2,
+                "odn_notification_3": dn_notification_3,
+                "odn_action_date": d_run_date,
+                "result": Result.COMPLETE_ACTION,
             }
-    
+
     else:
         remaining_days = idn_action_date - d_run_date
 
-        if dn_notification_1 is None and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_1):
+        if dn_notification_1 is None and remaining_days <= datetime.timedelta(
+            days=NOTIFICATION_PERIOD_1
+        ):
             message = "Send first notification"
             return {
-                'odn_notification_1': d_run_date,
-                'odn_notification_2': None,
-                'odn_notification_3': None,
-                'odn_action_date': idn_action_date,
-                'result': Result.SEND_NOTIFICATION_1
+                "odn_notification_1": d_run_date,
+                "odn_notification_2": None,
+                "odn_notification_3": None,
+                "odn_action_date": idn_action_date,
+                "result": Result.SEND_NOTIFICATION_1,
             }
 
-        elif dn_notification_2 is None and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_2):
+        elif dn_notification_2 is None and remaining_days <= datetime.timedelta(
+            days=NOTIFICATION_PERIOD_2
+        ):
             message = "Send second notification"
             return {
-                'odn_notification_1': dn_notification_1,
-                'odn_notification_2': d_run_date,
-                'odn_notification_3': None,
-                'odn_action_date': idn_action_date,
-                'result': Result.SEND_NOTIFICATION_2
+                "odn_notification_1": dn_notification_1,
+                "odn_notification_2": d_run_date,
+                "odn_notification_3": None,
+                "odn_action_date": idn_action_date,
+                "result": Result.SEND_NOTIFICATION_2,
             }
-        
-        elif dn_notification_3 is None  and remaining_days <= datetime.timedelta(days=NOTIFICATION_PERIOD_3):
+
+        elif dn_notification_3 is None and remaining_days <= datetime.timedelta(
+            days=NOTIFICATION_PERIOD_3
+        ):
             message = "Send third notification"
             return {
-                'odn_notification_1': dn_notification_1,
-                'odn_notification_2': dn_notification_2,
-                'odn_notification_3': d_run_date,
-                'odn_action_date': idn_action_date,
-                'result': Result.SEND_NOTIFICATION_3
+                "odn_notification_1": dn_notification_1,
+                "odn_notification_2": dn_notification_2,
+                "odn_notification_3": d_run_date,
+                "odn_action_date": idn_action_date,
+                "result": Result.SEND_NOTIFICATION_3,
             }
 
         else:
             message = "Log without notification"
             return {
-                'odn_notification_1': dn_notification_1,
-                'odn_notification_2': dn_notification_2,
-                'odn_notification_3': dn_notification_3,
-                'odn_action_date': idn_action_date,
-                'result': Result.LOG_NO_NOTIFICATION
-            }        
+                "odn_notification_1": dn_notification_1,
+                "odn_notification_2": dn_notification_2,
+                "odn_notification_3": dn_notification_3,
+                "odn_action_date": idn_action_date,
+                "result": Result.LOG_NO_NOTIFICATION,
+            }
+
 
 class Result(str, enum.Enum):
-    ADD_ACTION_DATE             = "add_action_date"
-    RESET_ACTION_DATE           = "reset_action_date"
-    COMPLETE_ACTION             = "complete_action"
-    TRANSITION_ACTION           = "transition_action"
-    PAST_BUMP_NOTIFICATION_1    = "past_bump_notification_1"
-    PAST_BUMP_NOTIFICATION_2    = "past_bump_notification_2"
-    PAST_BUMP_NOTIFICATION_3    = "past_bump_notification_3"
+    ADD_ACTION_DATE = "add_action_date"
+    RESET_ACTION_DATE = "reset_action_date"
+    COMPLETE_ACTION = "complete_action"
+    TRANSITION_ACTION = "transition_action"
+    PAST_BUMP_NOTIFICATION_1 = "past_bump_notification_1"
+    PAST_BUMP_NOTIFICATION_2 = "past_bump_notification_2"
+    PAST_BUMP_NOTIFICATION_3 = "past_bump_notification_3"
 
-    SEND_NOTIFICATION_1         = "send_notification_1"
-    SEND_NOTIFICATION_2         = "send_notification_2"
-    SEND_NOTIFICATION_3         = "send_notification_3"
-    LOG_NO_NOTIFICATION         = "log_no_notification"
+    SEND_NOTIFICATION_1 = "send_notification_1"
+    SEND_NOTIFICATION_2 = "send_notification_2"
+    SEND_NOTIFICATION_3 = "send_notification_3"
+    LOG_NO_NOTIFICATION = "log_no_notification"
 
-    IGNORE_OTHER_STATES         = "ignore_other_states"
-    SKIP_EXCEPTION              = "skip_exception"
+    IGNORE_OTHER_STATES = "ignore_other_states"
+    SKIP_EXCEPTION = "skip_exception"
     # PAST_EXPIRED_NOTIFICATION   = "past_expired_notification"
     # FUTURE_NORMAL_NOTIFY        = "future_normal_notify"
     # WINDOW_EXPIRED_BUMP         = "window_expired_bump"
@@ -253,468 +344,581 @@ class Result(str, enum.Enum):
     # OVERRIDE_ACTION_DATE        = "override_action_date"
     # EXCEPTION                   = "exception"
 
-notify_messages = {
-    Result.ADD_ACTION_DATE             : "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
-    Result.RESET_ACTION_DATE           : "RESET_ACTION_DATE: Updated tag [{tag}] (date too far out): {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date set to {date}",
-    Result.COMPLETE_ACTION             : "COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
-    Result.TRANSITION_ACTION             : "TRANSITION_ACTION: Added new {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}]) on {date}",
-    Result.PAST_BUMP_NOTIFICATION_1       : "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
-    Result.PAST_BUMP_NOTIFICATION_2       : "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
-    Result.PAST_BUMP_NOTIFICATION_3       : "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
-    
-    Result.SEND_NOTIFICATION_1       : "SEND_NOTIFICATION_1: LOREM IPSUM",
-    Result.SEND_NOTIFICATION_2       : "SEND_NOTIFICATION_2: LOREM IPSUM",
-    Result.SEND_NOTIFICATION_3       : "SEND_NOTIFICATION_3: LOREM IPSUM",
-    Result.LOG_NO_NOTIFICATION       : "LOG_NO_NOTIFICATION: LOREM IPSUM",
-
-    Result.IGNORE_OTHER_STATES       : "IGNORE_OTHER_STATES: LOREM IPSUM",
-    Result.SKIP_EXCEPTION            : "SKIP_EXCEPTION: LOREM IPSUM",
-
-    # Result.PAST_EXPIRED_NOTIFICATION   : "PAST_EXPIRED_NOTIFICATION: Updated tag [{tag}]: Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-    # Result.FUTURE_NORMAL_NOTIFY        : "FUTURE_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
-    # Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-    # Result.WINDOW_NORMAL_NOTIFY        : "WINDOW_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
-    # Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
-    # Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
-    # Result.EXCEPTION                   : "EXCEPTION: {instance_type} {instance_name} [{instance_id}] in region {region} has an exception",
-}
-
-detailed_log = []
 
 def add_to_log(
-        email,
-        instance_type,
-        instance_name,
-        instance_id,
-        region,
-        action,
-        tag,
-        result,
-        old_date,
-        new_date,
-        message,
-        ):
-    detailed_log.append({
-        'email' : email,
-        'instance_type' : instance_type,
-        'instance_name' : instance_name,
-        'instance_id' : instance_id,
-        'region' : region,
-        'action' : action,
-        'tag' : tag,
-        'result' : result,
-        'old_date': old_date,
-        'new_date' : new_date,
-        'message': message,
-    })
+    email,
+    instance_type,
+    instance_name,
+    instance_id,
+    region,
+    action,
+    tag,
+    result,
+    old_date,
+    new_date,
+    message,
+):
+    return {
+        "email": email,
+        "instance_type": instance_type,
+        "instance_name": instance_name,
+        "instance_id": instance_id,
+        "region": region,
+        "action": action,
+        "tag": tag,
+        "result": result,
+        "old_date": old_date,
+        "new_date": new_date,
+        "message": message,
+    }
 
 
-# Get value of key from dictionary (or return None)
-def value_or_none(tags, tag):
-    return tags[tag] if tag in tags else None
-
-# Same as above, but convert to a datetime.date on the way (and return None)
 def date_or_none(tags, tag):
+    """
+    Convert to a datetime.date on the way (or return None)
+    """
     try:
-        return datetime.date.fromisoformat(tags[tag])
-    except:
+        return datetime.date.fromisoformat(tags.get(tag))
+    except Exception:
         return None
 
-############################
 
-# Parse Arguments
-parser = argparse.ArgumentParser(description="AWS Cleanup Script")
-parser.add_argument('--run-date')
-parser.add_argument('--dry-run', action='store_true')
-parser.add_argument('--tag-only', action='store_true')
-parser.add_argument('--full', action='store_true')
-parser.add_argument('--override-stop-date', action='store_true')
-parser.add_argument('--debug', action='store_true')
+###############
+# Main thread #
+###############
+if __name__ == "__main__":
 
-args = parser.parse_args()
+    # Parse Arguments
+    parser = argparse.ArgumentParser(description="AWS Cleanup Script")
+    parser.add_argument(
+        "--run-date",
+        dest="run_date",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+    )
+    parser.add_argument(
+        "--tag-only",
+        action="store_true",
+        dest="tag_only",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        dest="full",
+    )
+    parser.add_argument(
+        "--override-stop-date",
+        action="store_true",
+        dest="override_stop_date",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        dest="debug",
+    )
+    args = parser.parse_args()
 
-d_run_date = D_TODAY
-if args.run_date:
-    d_run_date = datetime.date.fromisoformat(args.run_date)
+    # Set log level
+    logging.basicConfig(
+        format=f"[{id}] %(asctime)s.%(msecs)03d [%(levelname)s]: %(message)s",
+        level=logging.DEBUG if args.debug else logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
-search_filter = DEFAULT_SEARCH_FILTER if args.full else test_filter
+    NOTIFY_MESSAGES = {
+        Result.ADD_ACTION_DATE: "ADD_ACTION_DATE: Added {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
+        Result.RESET_ACTION_DATE: "RESET_ACTION_DATE: Updated tag [{tag}] (date too far out): {instance_type} {instance_name} [{instance_id}] in region {region}: {action} date set to {date}",
+        Result.COMPLETE_ACTION: "COMPLETE_ACTION: Completed {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}])",
+        Result.TRANSITION_ACTION: "TRANSITION_ACTION: Added new {action} {instance_type} {instance_name} [{instance_id}] in region {region} (tag [{tag}]) on {date}",
+        Result.PAST_BUMP_NOTIFICATION_1: "PAST_BUMP_NOTIFICATION_1: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
+        Result.PAST_BUMP_NOTIFICATION_2: "PAST_BUMP_NOTIFICATION_2: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
+        Result.PAST_BUMP_NOTIFICATION_3: "PAST_BUMP_NOTIFICATION_3: Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on {date}",
+        Result.SEND_NOTIFICATION_1: "SEND_NOTIFICATION_1: LOREM IPSUM",
+        Result.SEND_NOTIFICATION_2: "SEND_NOTIFICATION_2: LOREM IPSUM",
+        Result.SEND_NOTIFICATION_3: "SEND_NOTIFICATION_3: LOREM IPSUM",
+        Result.LOG_NO_NOTIFICATION: "LOG_NO_NOTIFICATION: LOREM IPSUM",
+        Result.IGNORE_OTHER_STATES: "IGNORE_OTHER_STATES: LOREM IPSUM",
+        Result.SKIP_EXCEPTION: "SKIP_EXCEPTION: LOREM IPSUM",
+        # Result.PAST_EXPIRED_NOTIFICATION   : "PAST_EXPIRED_NOTIFICATION: Updated tag [{tag}]: Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+        # Result.FUTURE_NORMAL_NOTIFY        : "FUTURE_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
+        # Result.WINDOW_EXPIRED_BUMP         : "WINDOW_EXPIRED_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+        # Result.WINDOW_NORMAL_NOTIFY        : "WINDOW_NORMAL_NOTIFY:  Will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date} (tag [{tag}])",
+        # Result.WINDOW_RECENT_BUMP          : "WINDOW_RECENT_BUMP:  Updated tag [{tag}]: will {action} {instance_type} {instance_name} [{instance_id}] in region {region} on or after {date}",
+        # Result.OVERRIDE_ACTION_DATE        : "OVERRIDE_ACTION_DATE: Updated {action} date (tag [{tag}]) of {date} to {instance_type} {instance_name} [{instance_id}] in region {region}",
+        # Result.EXCEPTION                   : "EXCEPTION: {instance_type} {instance_name} [{instance_id}] in region {region} has an exception",
+    }
 
-use_test_region_filter = not args.full
-dry_run = args.dry_run
-tag_only = args.tag_only
-debug = args.debug
+    d_run_date = D_TODAY
+    if args.run_date:
+        d_run_date = datetime.date.fromisoformat(args.run_date)
 
-override_stop_date = args.override_stop_date
+    search_filter = DEFAULT_SEARCH_FILTER if args.full else TEST_FILTER
 
+    # Main process run
+    logging.info("Running cleaner on {}".format(d_run_date))
 
-# Main process run
-print("Running cleaner on {}".format(d_run_date))
+    if not args.full:
+        # use test region filter
+        regions = TEST_REGION_OVERRIDE
+        logging.info("Using test regions")
+    else:
+        ec2 = boto3.client("ec2", region_name="us-east-1")
+        logging.info("Getting regions")
+        regions = [region["RegionName"] for region in ec2.describe_regions()["Regions"]]
 
-if use_test_region_filter:
-    regions = test_region_override
-    print("Using test regions")
-else:
-    ec2 = boto3.client('ec2', region_name='us-east-1')
-    print("Getting regions")
-    regions = [region['RegionName'] for region in ec2.describe_regions()['Regions']]
+    logging.info("Using regions: {}".format(regions))
 
-print("Using regions: {}".format(regions))
+    for region in regions:
+        logging.info("Processing region {}".format(region))
+        ec2_client = boto3.client("ec2", region_name=region)
 
-for region in regions:
-    print("\nProcessing region {0}".format(region))
-    ec2_client = boto3.client('ec2', region_name = region)
+        # https://stackoverflow.com/a/952952
+        # instances = [reservation["Instances"] for reservation in ec2_client.describe_instances(Filters=justin_filter)["Reservations"]]
+        # TODO: Add pagination, maybe (hopefully we don't have more than 500 instance running...)
+        ec2_instances = [
+            instance
+            for reservation in ec2_client.describe_instances(
+                MaxResults=500,
+                Filters=search_filter,
+            )["Reservations"]
+            for instance in reservation["Instances"]
+        ]
 
-    # https://stackoverflow.com/a/952952
-    # instances = [reservation["Instances"] for reservation in ec2_client.describe_instances(Filters=justin_filter)["Reservations"]]
-    # TODO: Add pagination, maybe (hopefully we don't have more than 500 instance running...)
-    ec2_instances = [instance for reservation in ec2_client.describe_instances(MaxResults=500,Filters=search_filter)["Reservations"] for instance in reservation["Instances"]]
+        # https://confluentinc.atlassian.net/wiki/spaces/~457145999/pages/3318745562/Cloud+Spend+Reduction+Proposal+AWS+Solutions+Engineering+Account
+        detailed_log = list()
+        for instance in ec2_instances:
+            state = instance["State"]["Name"]
+            instance_id = instance["InstanceId"]
 
-    # https://confluentinc.atlassian.net/wiki/spaces/~457145999/pages/3318745562/Cloud+Spend+Reduction+Proposal+AWS+Solutions+Engineering+Account
-    for instance in ec2_instances:
-        print("")
-        instance_id = instance["InstanceId"]
-        state = instance["State"]["Name"]
+            logging.info(
+                "Processing {} instance {} in region {}".format(
+                    state,
+                    instance_id,
+                    region,
+                )
+            )
 
-        print("Processing {1} instance {0} in region {2}".format(instance_id, state, region))
-        
-        if "Tags" not in instance:
-            tags = {}
-        else:
-            tags = {tag["Key"]:tag["Value"] for tag in instance["Tags"]}
+            if "Tags" not in instance:
+                tags = dict()
+            else:
+                tags = {tag["Key"]: tag["Value"] for tag in instance["Tags"]}
 
-        autoscaling_group = value_or_none(tags, T_AUTOSCALING_GROUP)
-        exception = value_or_none(tags, T_EXCEPTION)
+            autoscaling_group = tags.get(T_AUTOSCALING_GROUP)
+            exception = tags.get(T_EXCEPTION)
 
-        # 'dn_' means 'either a Datetime.date or None'
-        dn_stop_date = date_or_none(tags, T_STOP_DATE)
-        dn_terminate_date = date_or_none(tags, T_TERMINATE_DATE)
-        dn_notification_1 = date_or_none(tags, T_NOTIFICATION_1)
-        dn_notification_2 = date_or_none(tags, T_NOTIFICATION_2)
-        dn_notification_3 = date_or_none(tags, T_NOTIFICATION_3)
+            # 'dn_' means 'either a Datetime.date or None'
+            dn_stop_date = date_or_none(tags, T_STOP_DATE)
+            dn_terminate_date = date_or_none(tags, T_TERMINATE_DATE)
+            dn_notification_1 = date_or_none(tags, T_NOTIFICATION_1)
+            dn_notification_2 = date_or_none(tags, T_NOTIFICATION_2)
+            dn_notification_3 = date_or_none(tags, T_NOTIFICATION_3)
 
-        instance_name = value_or_none(tags, T_NAME)
-        
-        # Rough equivalent to coalesce
-        owner_email = value_or_none(tags, T_OWNER_EMAIL) \
-            or value_or_none(tags, T_EMAIL) \
-            or value_or_none(tags, T_DIVVY_OWNER) \
-            or value_or_none(tags, T_DIVVY_LAST_MODIFIED_BY)
-        
-        print("{} is {}".format(instance_name, state))
+            instance_name = tags.get(T_NAME)
 
-        if autoscaling_group is None:
-            if exception is None:
-                if state == "running":
-                    if True:
-                        # Returns dict with the following:
+            # Rough equivalent to coalesce
+            owner_email = (
+                tags.get(T_OWNER_EMAIL)
+                or tags.get(T_EMAIL)
+                or tags.get(T_DIVVY_OWNER)
+                or tags.get(T_DIVVY_LAST_MODIFIED_BY)
+            )
+
+            logging.info("{} is {}".format(instance_name, state))
+
+            if autoscaling_group is None:
+                if exception is None:
+                    if state == "running":
+                        if True:
+                            # Returns dict with the following:
                             # odn_notification_1: New dn_notification_1
                             # odn_notification_2: New dn_notification_2
                             # odn_notification_3: New dn_notification_3
                             # odn_action_date
                             # result ENUM
 
-                        r = determine_action(
-                            idn_action_date=dn_stop_date,
-                            idn_notification_1=dn_notification_1,
-                            idn_notification_2=dn_notification_2,
-                            idn_notification_3=dn_notification_3,
-                            i_default_days=DEFAULT_STOP_DAYS,
-                            i_max_days=MAX_STOP_DAYS,
-                        )
-
-                        # Update all tags that have changed
-                        for tag in [
-                            (T_STOP_DATE, dn_stop_date, r['odn_action_date']),
-                            (T_NOTIFICATION_1, dn_notification_1, r['odn_notification_1']),
-                            (T_NOTIFICATION_2, dn_notification_2, r['odn_notification_2']),
-                            (T_NOTIFICATION_3, dn_notification_3, r['odn_notification_3']),
-                        ]:
-                            if tag[1] != tag[2]:
-                                ec2_update_tag(
-                                    instance_id=instance_id,
-                                    instance_name=instance_name,
-                                    region=region,
-                                    key=tag[0],
-                                    value=tag[2],
-                                    old_value=tag[1],
-                                )
-
-                        message = notify_messages[r['result']].format(
-                                instance_type = "EC2",
-                                instance_name = instance_name,
-                                instance_id = instance_id,
-                                region = region,
-                                action = "STOP",
-                                tag = T_STOP_DATE,
-                                date = r['odn_action_date'],
-                            )
-                        
-                        add_to_log(
-                            email = owner_email,
-                            instance_type = "EC2",
-                            instance_name = instance_name,
-                            instance_id = instance_id,
-                            region = region,
-                            action = "STOP",
-                            tag = T_STOP_DATE,
-                            result = r['result'],
-                            old_date = dn_stop_date,
-                            new_date = r['odn_action_date'],
-                            message = message,
-                        )
-
-                        if r['result'] == Result.COMPLETE_ACTION:
-                            # On complete:
-                            # Up till now, have:
-                            # * Left notification tags alone (tags are from stop notifications)
-                            # * Added a STOP/COMPLETE ACTION log
-                            # Now need to do the following: # TODO FIX THIS LOGIC, something is missing here
-                            # * Stop the instance
-                            # * TODO: Add "Summary stop tag"
-                            # * Add a termination date
-                            # * Set notification tags back to None
-                            # * Add a TERMINATE/TRANSITION log
-                            # * Add a TERMINATE/Add tag log?
-                            ec2_stop(
-                                instance_id=instance_id,
-                                instance_name=instance_name,
-                                region=region,
+                            r = determine_action(
+                                idn_action_date=dn_stop_date,
+                                idn_notification_1=dn_notification_1,
+                                idn_notification_2=dn_notification_2,
+                                idn_notification_3=dn_notification_3,
+                                i_default_days=DEFAULT_STOP_DAYS,
+                                i_max_days=MAX_STOP_DAYS,
                             )
 
-                            ec2_update_tag(
-                                instance_id=instance_id,
-                                instance_name=instance_name,
-                                region=region,
-                                key=T_TERMINATE_DATE,
-                                value=d_run_date + datetime.timedelta(days = DEFAULT_TERMINATE_DAYS),
-                                old_value = None
-                            )
-
-                            # Summary stop log
-                            ec2_update_tag(
-                                instance_id=instance_id,
-                                instance_name=instance_name,
-                                region=region,
-                                key=T_STOP_LOGS,
-                                value="notified:{},{},{};stopped:{}".format(dn_notification_1,dn_notification_2,dn_notification_3,d_run_date),
-                                old_value = None
-                            )
-
-                            message = notify_messages[Result.TRANSITION_ACTION].format(
-                                instance_type = "EC2",
-                                instance_name = instance_name,
-                                instance_id = instance_id,
-                                region = region,
-                                action = "TERMINATE",
-                                tag = T_TERMINATE_DATE,
-                                date = d_run_date, # Date of transition, not new terminate date
-                            )
-
-                            add_to_log(
-                                email = owner_email,
-                                instance_type = "EC2",
-                                instance_name = instance_name,
-                                instance_id = instance_id,
-                                region = region,
-                                action = "TERMINATE",
-                                tag = T_TERMINATE_DATE,
-                                result = Result.TRANSITION_ACTION,
-                                old_date = None,
-                                new_date = d_run_date + datetime.timedelta(days = DEFAULT_TERMINATE_DAYS),
-                                message = message,
-                            )
-
+                            # Update all tags that have changed
                             for tag in [
-                                (T_NOTIFICATION_1, dn_notification_1, None),
-                                (T_NOTIFICATION_2, dn_notification_2, None),
-                                (T_NOTIFICATION_3, dn_notification_3, None),
+                                (T_STOP_DATE, dn_stop_date, r["odn_action_date"]),
+                                (
+                                    T_NOTIFICATION_1,
+                                    dn_notification_1,
+                                    r["odn_notification_1"],
+                                ),
+                                (
+                                    T_NOTIFICATION_2,
+                                    dn_notification_2,
+                                    r["odn_notification_2"],
+                                ),
+                                (
+                                    T_NOTIFICATION_3,
+                                    dn_notification_3,
+                                    r["odn_notification_3"],
+                                ),
                             ]:
+                                if tag[1] != tag[2]:
+                                    ec2_update_tag(
+                                        instance_id=instance_id,
+                                        instance_name=instance_name,
+                                        region=region,
+                                        key=tag[0],
+                                        value=tag[2],
+                                        old_value=tag[1],
+                                        args=args,
+                                    )
+
+                            message = NOTIFY_MESSAGES[r["result"]].format(
+                                instance_type="EC2",
+                                instance_name=instance_name,
+                                instance_id=instance_id,
+                                region=region,
+                                action="STOP",
+                                tag=T_STOP_DATE,
+                                date=r["odn_action_date"],
+                            )
+
+                            detailed_log.append(
+                                add_to_log(
+                                    email=owner_email,
+                                    instance_type="EC2",
+                                    instance_name=instance_name,
+                                    instance_id=instance_id,
+                                    region=region,
+                                    action="STOP",
+                                    tag=T_STOP_DATE,
+                                    result=r["result"],
+                                    old_date=dn_stop_date,
+                                    new_date=r["odn_action_date"],
+                                    message=message,
+                                )
+                            )
+
+                            if r["result"] == Result.COMPLETE_ACTION:
+                                # On complete:
+                                # Up till now, have:
+                                # * Left notification tags alone (tags are from stop notifications)
+                                # * Added a STOP/COMPLETE ACTION log
+                                # Now need to do the following: # TODO FIX THIS LOGIC, something is missing here
+                                # * Stop the instance
+                                # * TODO: Add "Summary stop tag"
+                                # * Add a termination date
+                                # * Set notification tags back to None
+                                # * Add a TERMINATE/TRANSITION log
+                                # * Add a TERMINATE/Add tag log?
+                                ec2_stop(
+                                    instance_id=instance_id,
+                                    instance_name=instance_name,
+                                    region=region,
+                                    args=args,
+                                )
+
                                 ec2_update_tag(
                                     instance_id=instance_id,
                                     instance_name=instance_name,
                                     region=region,
-                                    key=tag[0],
-                                    value=tag[2],
-                                    old_value=tag[1],
+                                    key=T_TERMINATE_DATE,
+                                    value=d_run_date
+                                    + datetime.timedelta(days=DEFAULT_TERMINATE_DAYS),
+                                    old_value=None,
+                                    args=args,
                                 )
-                    else:
-                        pass # Placeholder for 'override' behavior
 
-                elif state == "stopped":
-                    if True:
-                        # Returns dict with the following:
+                                # Summary stop log
+                                ec2_update_tag(
+                                    instance_id=instance_id,
+                                    instance_name=instance_name,
+                                    region=region,
+                                    key=T_STOP_LOGS,
+                                    value="notified:{},{},{};stopped:{}".format(
+                                        dn_notification_1,
+                                        dn_notification_2,
+                                        dn_notification_3,
+                                        d_run_date,
+                                    ),
+                                    old_value=None,
+                                    args=args,
+                                )
+
+                                message = NOTIFY_MESSAGES[
+                                    Result.TRANSITION_ACTION
+                                ].format(
+                                    instance_type="EC2",
+                                    instance_name=instance_name,
+                                    instance_id=instance_id,
+                                    region=region,
+                                    action="TERMINATE",
+                                    tag=T_TERMINATE_DATE,
+                                    date=d_run_date,  # Date of transition, not new terminate date
+                                )
+
+                                detailed_log.append(
+                                    add_to_log(
+                                        email=owner_email,
+                                        instance_type="EC2",
+                                        instance_name=instance_name,
+                                        instance_id=instance_id,
+                                        region=region,
+                                        action="TERMINATE",
+                                        tag=T_TERMINATE_DATE,
+                                        result=Result.TRANSITION_ACTION,
+                                        old_date=None,
+                                        new_date=d_run_date
+                                        + datetime.timedelta(
+                                            days=DEFAULT_TERMINATE_DAYS
+                                        ),
+                                        message=message,
+                                    )
+                                )
+
+                                for tag in [
+                                    (T_NOTIFICATION_1, dn_notification_1, None),
+                                    (T_NOTIFICATION_2, dn_notification_2, None),
+                                    (T_NOTIFICATION_3, dn_notification_3, None),
+                                ]:
+                                    ec2_update_tag(
+                                        instance_id=instance_id,
+                                        instance_name=instance_name,
+                                        region=region,
+                                        key=tag[0],
+                                        value=tag[2],
+                                        old_value=tag[1],
+                                        args=args,
+                                    )
+                        else:
+                            pass  # Placeholder for 'override' behavior
+
+                    elif state == "stopped":
+                        if True:
+                            # Returns dict with the following:
                             # odn_notification_1: New dn_notification_1
                             # odn_notification_2: New dn_notification_2
                             # odn_notification_3: New dn_notification_3
                             # odn_action_date
                             # result ENUM
 
-                        r = determine_action(
-                            idn_action_date=dn_terminate_date,
-                            idn_notification_1=dn_notification_1,
-                            idn_notification_2=dn_notification_2,
-                            idn_notification_3=dn_notification_3,
-                            i_default_days=DEFAULT_TERMINATE_DAYS,
-                            i_max_days=MAX_TERMINATE_DAYS,
-                        )
+                            r = determine_action(
+                                idn_action_date=dn_terminate_date,
+                                idn_notification_1=dn_notification_1,
+                                idn_notification_2=dn_notification_2,
+                                idn_notification_3=dn_notification_3,
+                                i_default_days=DEFAULT_TERMINATE_DAYS,
+                                i_max_days=MAX_TERMINATE_DAYS,
+                            )
 
-                        # Update all tags that have changed
-                        for tag in [
-                            (T_TERMINATE_DATE, dn_terminate_date, r['odn_action_date']),
-                            (T_NOTIFICATION_1, dn_notification_1, r['odn_notification_1']),
-                            (T_NOTIFICATION_2, dn_notification_2, r['odn_notification_2']),
-                            (T_NOTIFICATION_3, dn_notification_3, r['odn_notification_3']),
-                        ]:
-                            if tag[1] != tag[2]:
+                            # Update all tags that have changed
+                            for tag in [
+                                (
+                                    T_TERMINATE_DATE,
+                                    dn_terminate_date,
+                                    r["odn_action_date"],
+                                ),
+                                (
+                                    T_NOTIFICATION_1,
+                                    dn_notification_1,
+                                    r["odn_notification_1"],
+                                ),
+                                (
+                                    T_NOTIFICATION_2,
+                                    dn_notification_2,
+                                    r["odn_notification_2"],
+                                ),
+                                (
+                                    T_NOTIFICATION_3,
+                                    dn_notification_3,
+                                    r["odn_notification_3"],
+                                ),
+                            ]:
+                                if tag[1] != tag[2]:
+                                    ec2_update_tag(
+                                        instance_id=instance_id,
+                                        instance_name=instance_name,
+                                        region=region,
+                                        key=tag[0],
+                                        value=tag[2],
+                                        old_value=tag[1],
+                                        args=args,
+                                    )
+
+                            message = NOTIFY_MESSAGES[r["result"]].format(
+                                instance_type="EC2",
+                                instance_name=instance_name,
+                                instance_id=instance_id,
+                                region=region,
+                                action="TERMINATE",
+                                tag=T_STOP_DATE,
+                                date=r["odn_action_date"],
+                            )
+
+                            detailed_log.append(
+                                add_to_log(
+                                    email=owner_email,
+                                    instance_type="EC2",
+                                    instance_name=instance_name,
+                                    instance_id=instance_id,
+                                    region=region,
+                                    action="TERMINATE",
+                                    tag=T_TERMINATE_DATE,
+                                    result=r["result"],
+                                    old_date=dn_terminate_date,
+                                    new_date=r["odn_action_date"],
+                                    message=message,
+                                )
+                            )
+
+                            if r["result"] == Result.COMPLETE_ACTION:
+                                # On complete, terminate the instance
+                                ec2_terminate(
+                                    instance_id=instance_id,
+                                    instance_name=instance_name,
+                                    region=region,
+                                    args=args,
+                                )
+
+                                # Summary stop log
                                 ec2_update_tag(
                                     instance_id=instance_id,
                                     instance_name=instance_name,
                                     region=region,
-                                    key=tag[0],
-                                    value=tag[2],
-                                    old_value=tag[1],
+                                    key=T_TERMINATE_LOGS,
+                                    value="notified:{},{},{};terminated:{}".format(
+                                        dn_notification_1,
+                                        dn_notification_2,
+                                        dn_notification_3,
+                                        d_run_date,
+                                    ),
+                                    old_value=None,
+                                    args=args,
                                 )
+                                # TODO: Add additional log for this?
+                        else:
+                            pass  # Placeholder for 'override' behavior
 
-                        message = notify_messages[r['result']].format(
-                                instance_type = "EC2",
-                                instance_name = instance_name,
-                                instance_id = instance_id,
-                                region = region,
-                                action = "TERMINATE",
-                                tag = T_STOP_DATE,
-                                date = r['odn_action_date'],
-                            )
-                            
-                        add_to_log(
-                            email = owner_email,
-                            instance_type = "EC2",
-                            instance_name = instance_name,
-                            instance_id = instance_id,
-                            region = region,
-                            action = "TERMINATE",
-                            tag = T_TERMINATE_DATE,
-                            result = r['result'],
-                            old_date = dn_terminate_date,
-                            new_date = r['odn_action_date'],
-                            message = message,
+                    else:  # State is not running or stopped
+                        message = NOTIFY_MESSAGES[Result.IGNORE_OTHER_STATES].format(
+                            instance_type="EC2",
+                            instance_name=instance_name,
+                            instance_id=instance_id,
+                            region=region,
+                            action="IGNORE",
+                            tag=state,  # This is a hack
+                            date=d_run_date,
                         )
 
-                        if r['result'] == Result.COMPLETE_ACTION:
-                            # On complete, terminate the instance
-                            ec2_terminate(instance_id=instance_id,
-                                     instance_name=instance_name,
-                                     region=region,
-                                     )
-
-                            # Summary stop log
-                            ec2_update_tag(
-                                instance_id=instance_id,
+                        detailed_log.append(
+                            add_to_log(
+                                email=owner_email,
+                                instance_type="EC2",
                                 instance_name=instance_name,
+                                instance_id=instance_id,
                                 region=region,
-                                key=T_TERMINATE_LOGS,
-                                value="notified:{},{},{};terminated:{}".format(dn_notification_1,dn_notification_2,dn_notification_3,d_run_date),
-                                old_value = None
+                                action="IGNORE",
+                                tag=state,  # again, this is a hack
+                                result=Result.IGNORE_OTHER_STATES,
+                                old_date=d_run_date,
+                                new_date=d_run_date,
+                                message=message,
                             )
-                            # TODO: Add additional log for this?
-                    else:
-                        pass # Placeholder for 'override' behavior
-
-                else: # State is not running or stopped
-                    message = notify_messages[Result.IGNORE_OTHER_STATES].format(
-                            instance_type = "EC2",
-                            instance_name = instance_name,
-                            instance_id = instance_id,
-                            region = region,
-                            action = "IGNORE",
-                            tag = state, # This is a hack
-                            date = d_run_date,
                         )
-                        
-                    add_to_log(
-                        email = owner_email,
-                        instance_type = "EC2",
-                        instance_name = instance_name,
-                        instance_id = instance_id,
-                        region = region,
-                        action = "IGNORE",
-                        tag = state, # again, this is a hack
-                        result = Result.IGNORE_OTHER_STATES,
-                        old_date = d_run_date,
-                        new_date = d_run_date,
-                        message = message,
+
+                else:  # Exception exists, add to notify list
+                    message = NOTIFY_MESSAGES[Result.SKIP_EXCEPTION].format(
+                        instance_type="EC2",
+                        instance_name=instance_name,
+                        instance_id=instance_id,
+                        region=region,
+                        action="SKIP_EXCEPTION",
+                        tag=exception,  # This is a hack
+                        date=d_run_date,
                     )
 
-            else: # Exception exists, add to notify list
-                message = notify_messages[Result.SKIP_EXCEPTION].format(
-                        instance_type = "EC2",
-                        instance_name = instance_name,
-                        instance_id = instance_id,
-                        region = region,
-                        action = "SKIP_EXCEPTION",
-                        tag = exception, # This is a hack
-                        date = d_run_date,
+                    detailed_log.append(
+                        add_to_log(
+                            email=owner_email,
+                            instance_type="EC2",
+                            instance_name=instance_name,
+                            instance_id=instance_id,
+                            region=region,
+                            action="SKIP_EXCEPTION",
+                            tag=exception,  # again, this is a hack
+                            result=Result.SKIP_EXCEPTION,
+                            old_date=d_run_date,
+                            new_date=d_run_date,
+                            message=message,
+                        )
                     )
-                    
-                add_to_log(
-                    email = owner_email,
-                    instance_type = "EC2",
-                    instance_name = instance_name,
-                    instance_id = instance_id,
-                    region = region,
-                    action = "SKIP_EXCEPTION",
-                    tag = exception, # again, this is a hack
-                    result = Result.SKIP_EXCEPTION,
-                    old_date = d_run_date,
-                    new_date = d_run_date,
-                    message = message,
+
+            else:  # In autoscaling group
+                logging.info(
+                    "Instance {0} is in ASG {1}, skipping".format(
+                        instance_id,
+                        autoscaling_group,
+                    )
                 )
 
-        else: # In autoscaling group
-            print("Instance {0} is in ASG {1}, skipping".format(instance_id,autoscaling_group))
+    logging.info("Today is {}".format(d_run_date))
+    # logging.info("Notification List:")
 
-print("")
-print("Today is {}".format(d_run_date))
-# print("Notification List:")
+    # Arbitrary sort order, primarily for cleanliness in output:
+    # * Email
+    # * Type
+    # * Region
+    # * Action
+    # * Result
+    # * Name
 
-# Arbitrary sort order, primarily for cleanliness in output:
-# * Email
-# * Type
-# * Region
-# * Action
-# * Result
-# * Name
+    ignore_list = sorted(
+        [x for x in detailed_log if x["action"] == "IGNORE"],
+        key=sort_key,
+    )
+    stop_list = sorted(
+        [x for x in detailed_log if x["action"] == "STOP"],
+        key=sort_key,
+    )
+    terminate_list = sorted(
+        [x for x in detailed_log if x["action"] == "TERMINATE"],
+        key=sort_key,
+    )
+    alt_list = sorted(
+        [
+            x
+            for x in detailed_log
+            if x["action"]
+            not in (
+                "IGNORE",
+                "STOP",
+                "TERMINATE",
+            )
+        ],
+        key=sort_key,
+    )
 
-def sort_key(x):
-    return " ".join([
-        x['email'],
-        x['instance_type'],
-        x['region'],
-        x['action'],
-        x['result'],
-        x['instance_name'],
-    ])
+    logging.info("IGNORE List:")
+    if ignore_list is not None:
+        for item in ignore_list:
+            logging.info(item)
 
-ignore_list = sorted([x for x in detailed_log if x['action'] == 'IGNORE'], key=sort_key)
-stop_list = sorted([x for x in detailed_log if x['action'] == 'STOP'], key=sort_key)
-terminate_list = sorted([x for x in detailed_log if x['action'] == 'TERMINATE'], key=sort_key)
-alt_list = sorted([x for x in detailed_log if x['action'] not in ('IGNORE', 'STOP', 'TERMINATE')], key=sort_key)
+    logging.info("STOP List:")
+    if stop_list is not None:
+        for item in stop_list:
+            logging.info(item)
 
-print("IGNORE List")
-if ignore_list is not None:
-    for item in ignore_list:
-        print(item)
+    logging.info("TERMINATE List:")
+    if terminate_list is not None:
+        for item in terminate_list:
+            logging.info(item)
 
-print("STOP List")
-if stop_list is not None:
-    for item in stop_list:
-        print(item)
-
-print ("TERMINATE List")
-if terminate_list is not None:
-    for item in terminate_list:
-        print(item)
-
-print ("ALTERNATE List")
-if alt_list is not None:
-    for item in alt_list:
-        print(item)
+    logging.info("ALTERNATE List:")
+    if alt_list is not None:
+        for item in alt_list:
+            logging.info(item)
