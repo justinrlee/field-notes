@@ -953,7 +953,7 @@ if __name__ == "__main__":
         for item in ignore_list:
             logging.info(item)
             slack_send_text(
-                token=slack_token
+                token=slack_token,
                 channel=channel_id,
                 text="{owner}: {message}".format(owner=owner, message=message)
             )
@@ -963,7 +963,7 @@ if __name__ == "__main__":
         for item in stop_list:
             logging.info(item)
             slack_send_text(
-                token=slack_token
+                token=slack_token,
                 channel=channel_id,
                 text="{owner}: {message}".format(owner=owner, message=message)
             )
@@ -973,7 +973,7 @@ if __name__ == "__main__":
         for item in terminate_list:
             logging.info(item)
             slack_send_text(
-                token=slack_token
+                token=slack_token,
                 channel=channel_id,
                 text="{owner}: {message}".format(owner=owner, message=message)
             )
@@ -983,7 +983,7 @@ if __name__ == "__main__":
         for item in alt_list:
             logging.info(item)
             slack_send_text(
-                token=slack_token
+                token=slack_token,
                 channel=channel_id,
                 text="{owner}: {message}".format(owner=owner, message=message)
             )
