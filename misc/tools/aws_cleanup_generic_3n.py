@@ -955,7 +955,11 @@ if __name__ == "__main__":
             slack_send_text(
                 token=slack_token,
                 channel=channel_id,
-                text="{owner}: {message}".format(owner=item["email"], message=item["message"])
+                text="{dryrun}{owner}: {message}".format(
+                    dryrun="DRY RUN: " if args.dry_run else "",
+                    owner=item["email"],
+                    message=item["message"]
+                )
             )
 
     logging.info("STOP List:")
@@ -965,7 +969,11 @@ if __name__ == "__main__":
             slack_send_text(
                 token=slack_token,
                 channel=channel_id,
-                text="{owner}: {message}".format(owner=item["email"], message=item["message"])
+                text="{dryrun}{owner}: {message}".format(
+                    dryrun="DRY RUN: " if args.dry_run else "",
+                    owner=item["email"],
+                    message=item["message"]
+                )
             )
 
     logging.info("TERMINATE List:")
@@ -975,7 +983,11 @@ if __name__ == "__main__":
             slack_send_text(
                 token=slack_token,
                 channel=channel_id,
-                text="{owner}: {message}".format(owner=item["email"], message=item["message"])
+                text="{dryrun}{owner}: {message}".format(
+                    dryrun="DRY RUN: " if args.dry_run else "",
+                    owner=item["email"],
+                    message=item["message"]
+                )
             )
 
     logging.info("ALTERNATE List:")
@@ -985,6 +997,10 @@ if __name__ == "__main__":
             slack_send_text(
                 token=slack_token,
                 channel=channel_id,
-                text="{owner}: {message}".format(owner=item["email"], message=item["message"])
+                text="{dryrun}{owner}: {message}".format(
+                    dryrun="DRY RUN: " if args.dry_run else "",
+                    owner=item["email"],
+                    message=item["message"]
+                )
             )
 
