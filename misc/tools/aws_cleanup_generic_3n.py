@@ -10,6 +10,8 @@ import boto3
 import logging
 import argparse
 import datetime
+import json
+import requests
 
 
 ###############################
@@ -30,6 +32,13 @@ TEST_FILTER = [
         ],
     },
 ]
+
+SLACK_TOKEN_SECRET_REGION="us-east-1"
+SLACK_TOKEN_SECRET_NAME="justin/slack_token"
+SLACK_TOKEN_SECRET_KEY="token"
+SLACK_CHANNEL_KEY="channel_id"
+
+# Chanenl 
 
 NOTIFICATION_PERIOD_1 = 15
 NOTIFICATION_PERIOD_2 = 7
@@ -382,6 +391,15 @@ def date_or_none(tags, tag):
     except Exception:
         return None
 
+def slack_send_text(token, channel, text):
+    r = requests.post(
+        url = "https://slack.com/api/chat.postMessage",
+        headers = {"Authorization": "Bearer {}".format(token)},
+        json = {
+            "channel": channel,
+            "text": text,
+        }
+    )
 
 ###############
 # Main thread #
@@ -457,8 +475,23 @@ if __name__ == "__main__":
 
     search_filter = DEFAULT_SEARCH_FILTER if args.full else TEST_FILTER
 
+    # Slack notification stuff; could probably put this somewhere up higher?
+    # Question: if we are unable to retrieve the Slack token (and maybe send a test message), should we kill the entire process?
+    aws_secret_client = boto3.client(service_name="secretsmanager", region_name=SLACK_TOKEN_SECRET_REGION)
+    try:
+        get_secret_value_response = aws_secret_client.get_secret_value(SecretId=SLACK_TOKEN_SECRET_NAME)
+        slack_token = json.loads(get_secret_value_response.get('SecretString')).get(SLACK_TOKEN_SECRET_KEY)
+        channel_id = json.loads(get_secret_value_response.get('SecretString')).get(SLACK_CHANNEL_KEY)
+    except:
+        logging.error("Unable to retrieve Slack token from AWS Secret Manager object {}, key {}, region {}".format(SLACK_TOKEN_SECRET_NAME, SLACK_TOKEN_SECRET_KEY, SLACK_TOKEN_SECRET_REGION))
+
+    logging.info("Using Slack token {}, and generic notification chanenl {}".format(slack_token, channel_id))
+
     # Main process run
+    # 
+    # We won't send most stuff to Slack, but use this to validate that connection is okay and indicate the script is starting
     logging.info("Running cleaner on {}".format(d_run_date))
+    slack_send_text(slack_token, channel_id, "Running cleaner on {}".format(d_run_date))
 
     if not args.full:
         # use test region filter
@@ -923,3 +956,4 @@ if __name__ == "__main__":
     if alt_list is not None:
         for item in alt_list:
             logging.info(item)
+
