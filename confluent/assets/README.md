@@ -7,4 +7,5 @@ Consists of:
     * Static Test CA private key + public certificate (can be used to generate certificates for MRC so clusters share a CA)
     * Static MDS private/public key
 * cfssl: various CFSSL JSON templates to generate certificates
+* creds: sample cred files
 * openldap: OpenLDAP helm chart
