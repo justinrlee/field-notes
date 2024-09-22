@@ -2,9 +2,24 @@
 
 One way to to do this is to stand up a small Kafka server and test a client certificate against it.
 
-On an Ubuntu 22.04 instance:
+Assuming you have these two files:
+* User-provided CA certificate (`custom-ca.crt`), in PEM format (the Confluent Cloud CA provider takes PEM-formatted certificates)
+* Client certificate which was signed by custom CA certificate (`client.keystore.p12`), in PKCS12 format (Java Kafka clients take certificates in JKS or PKCS12 format)
+
+This will:
+* Create an ephemeral self-signed certificate that will be:
+    * Used as the server-side 'keystore' for the Kafka server (presented on the listener)
+    * Used as the client-side 'truststore' for the Kafka client (trusted by the client)
+* Convert the PEM formatted user-provided CA certificate to PKCS12:
+    * Used as the server-side 'truststore' for the Kafka server (trusted on the listener)
+* Create a Kafka client authenticating using the PKCS12-formatted client certificate
+    * Used as the client-side 'keystore' for the client to authenticate to the Kafka server
+
 
 ### Prerequisites 
+
+On an Ubuntu 22.04 instance (assuming username is `ubuntu`)
+
 ```bash
 sudo apt-get update && \
 sudo apt-get install openjdk-17-jre-headless -y && \
@@ -48,7 +63,7 @@ keytool \
 
 Assuming user-provided certificate authority is a pem-formatted file "root.crt"
 ```bash
-USER_CA_FILE=root.crt
+USER_CA_FILE=custom-ca.crt
 
 keytool \
         -importcert \
@@ -124,7 +139,7 @@ KAFKA_OPTS="-Djavax.net.debug=ssl:handshake" kafka-server-start kraft.properties
 ```
 
 # Client side
-(In a different terminal, create a client configuration file)
+(In a different shell session on the same server, create a client configuration file)
 
 Assume user-provided client certificate is already pkcs12-formatted file `client.keystore.p12` and has password `changeme`
 
