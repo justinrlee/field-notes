@@ -103,24 +103,13 @@ ssl.client.auth=required
 confluent.cluster.link.metadata.topic.replication.factor=1
 
 confluent.balancer.topic.replication.factor=1
-confluent.license.topic=_confluent-command
 confluent.license.topic.replication.factor=1
 confluent.metadata.topic.replication.factor=1
 confluent.security.event.logger.exporter.kafka.topic.replicas=1
-group.initial.rebalance.delay.ms=3000
 
 log.dirs=/tmp/kafka/data
-log.retention.check.interval.ms=300000
-log.retention.hours=168
-log.segment.bytes=1073741824
-num.io.threads=16
-num.network.threads=8
 num.partitions=1
-num.recovery.threads.per.data.dir=2
 offsets.topic.replication.factor=1
-socket.receive.buffer.bytes=102400
-socket.request.max.bytes=104857600
-socket.send.buffer.bytes=102400
 transaction.state.log.min.isr=1
 transaction.state.log.replication.factor=1
 EOF
