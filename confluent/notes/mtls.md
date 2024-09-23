@@ -85,11 +85,9 @@ process.roles=broker,controller
 controller.listener.names=CONTROLLER
 controller.quorum.voters=9991@localhost:9093
 
-advertised.listeners=INTERNAL://localhost:9092,BROKER://localhost:9091,MTLS://localhost:9094
-#listeners=CONTROLLER://:9093
-listeners=CONTROLLER://:9093,INTERNAL://:9092,BROKER://:9091,MTLS://:9094
-#listener.security.protocol.map=CONTROLLER:PLAINTEXT,BROKER:PLAINTEXT
-listener.security.protocol.map=CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,BROKER:PLAINTEXT,MTLS:SSL
+advertised.listeners=BROKER://localhost:9092,MTLS://localhost:9094
+listeners=CONTROLLER://:9093,BROKER://:9092,MTLS://:9094
+listener.security.protocol.map=CONTROLLER:PLAINTEXT,BROKER:PLAINTEXT,MTLS:SSL
 inter.broker.listener.name=BROKER
 
 ssl.keystore.location=server.internal.keystore.p12
