@@ -1,5 +1,5 @@
 # FROM openjdk:11-buster
-FROM eclipse-temurin:11-jdk-focal
+FROM eclipse-temurin:17-jdk-focal
 
 RUN apt-get update \
   && apt-get install -y \
@@ -23,8 +23,8 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64 \
     && apt install yq -y \
   && rm -rf /var/lib/apt/lists/*
 
-# curl -O http://packages.confluent.io/archive/7.2/confluent-community-7.2.0.tar.gz
-ADD confluent-community-7.2.0.tar.gz /opt
+# curl -O https://packages.confluent.io/archive/7.7/confluent-community-7.7.1.tar.gz
+ADD confluent-community-7.7.1.tar.gz /opt
 
 # curl -O https://s3-us-west-2.amazonaws.com/confluent.cloud/confluent-cli/archives/latest/confluent_latest_linux_amd64.tar.gz
 ADD confluent_latest_linux_amd64.tar.gz /opt
@@ -36,6 +36,6 @@ RUN unzip /opt/awscliv2.zip && /aws/install && rm -r /aws
 
 RUN ln -s /usr/bin/kafkacat /usr/bin/kcat
 
-ENV PATH="${PATH}:/opt/confluent-7.2.0/bin:/opt/confluent"
+ENV PATH="${PATH}:/opt/confluent-7.7.1/bin:/opt/confluent"
 
 CMD ["tail", "-f", "/dev/null"]
