@@ -1,0 +1,42 @@
+# FROM openjdk:11-buster
+FROM eclipse-temurin:17-jdk-focal
+
+RUN apt-get update \
+  && apt-get install -y \
+    software-properties-common \
+    kafkacat \
+    vim \
+    curl \
+    telnet \
+    netcat \
+    less \
+    ldap-utils \
+    dnsutils \
+    jq \
+    unzip \
+  && rm -rf /var/lib/apt/lists/*
+
+# Separate command cause of the apt repo stuff
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64 \
+    && add-apt-repository -y ppa:rmescandon/yq \
+    && apt-get update \
+    && apt install yq -y \
+  && rm -rf /var/lib/apt/lists/*
+
+ADD kubectl-amd64 /usr/local/bin/kubectl
+
+ADD confluent-community-7.7.1.tar.gz /opt
+
+ADD confluent_linux_amd64.tar.gz /opt
+
+ADD awscli-exe-linux-x86_64.zip /opt
+
+RUN unzip /opt/awscli-exe-linux-x86_64.zip && /aws/install && rm -r /aws
+
+RUN ln -s /usr/bin/kafkacat /usr/bin/kcat
+
+ENV PATH="${PATH}:/opt/confluent-7.7.1/bin:/opt/confluent"
+
+RUN chmod +x /usr/local/bin/kubectl
+
+CMD ["tail", "-f", "/dev/null"]
