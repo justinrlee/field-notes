@@ -25,7 +25,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64 \
 
 ADD kubectl-amd64 /usr/local/bin/kubectl
 
-ADD confluent-community-7.7.1.tar.gz /opt
+ADD confluent-7.7.1.tar.gz /opt
 
 ADD confluent_linux_amd64.tar.gz /opt
 
