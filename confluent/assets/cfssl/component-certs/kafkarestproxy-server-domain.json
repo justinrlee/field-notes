@@ -1,6 +1,7 @@
 {
   "CN": "krp",
   "hosts": [
+    "localhost",
     "krp",
     "kafkarestproxy.mydomain.example",
     "kafkarestproxy.confluent.svc.cluster.local"

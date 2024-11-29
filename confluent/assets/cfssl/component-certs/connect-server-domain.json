@@ -1,6 +1,7 @@
 {
   "CN": "connect",
   "hosts": [
+    "localhost",
     "connect",
     "connect.mydomain.example",
     "connect.confluent.svc.cluster.local"

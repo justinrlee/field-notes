@@ -1,6 +1,7 @@
 {
   "CN": "ksql",
   "hosts": [
+    "localhost",
     "ksql",
     "ksqldb.mydomain.example",
     "ksqldb.confluent.svc.cluster.local"

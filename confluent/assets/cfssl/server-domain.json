@@ -1,6 +1,7 @@
 {
   "CN": "*.my.domain",
   "hosts": [
+    "localhost",
     "*.my.domain",
     "*.confluent.svc.cluster.local",
     "*.zookeeper.confluent.svc.cluster.local",

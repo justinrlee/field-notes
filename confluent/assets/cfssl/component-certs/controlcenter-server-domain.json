@@ -1,6 +1,7 @@
 {
   "CN": "c3",
   "hosts": [
+    "localhost",
     "c3",
     "controlcenter.mydomain.example",
     "controlcenter.confluent.svc.cluster.local"

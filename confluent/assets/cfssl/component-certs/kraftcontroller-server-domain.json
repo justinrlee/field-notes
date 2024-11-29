@@ -1,6 +1,7 @@
 {
   "CN": "kraftcontroller",
   "hosts": [
+    "localhost",
     "kraftcontroller",
     "kraftcontroller.confluent.svc.cluster.local",
     "*.kraftcontroller.confluent.svc.cluster.local",
