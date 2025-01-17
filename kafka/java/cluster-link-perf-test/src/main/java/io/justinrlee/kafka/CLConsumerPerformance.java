@@ -146,11 +146,12 @@ public class CLConsumerPerformance {
         long lastConsumedTimeMs = currentTimeMs;
 
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        long ts;
+        long generateTS, appendTS, consumeTS;
 
         while (messagesRead < numMessages && currentTimeMs - lastConsumedTimeMs <= recordFetchTimeoutMs) {
             ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofMillis(100));
             currentTimeMs = System.currentTimeMillis();
+            consumeTS = Instant.now().toEpochMilli();
             if (!records.isEmpty())
                 lastConsumedTimeMs = currentTimeMs;
             for (ConsumerRecord<byte[], byte[]> record : records) {
@@ -160,8 +161,13 @@ public class CLConsumerPerformance {
                 buffer.clear();
                 buffer.put(record.headers().lastHeader("timestamp").value(), 0, Long.BYTES);
                 buffer.flip();
-                ts = buffer.getLong();
-                System.out.println(Instant.now().toEpochMilli() - ts);
+                generateTS = buffer.getLong();
+                appendTS = record.timestamp();
+
+                // Two metrics:
+                // Produce latency (difference between produce time and append time)
+                // Consume latency (diffence between append time and consume time)
+                System.out.printf("%d %d\n", appendTS - generateTS, consumeTS - appendTS);
                 if (record.key() != null)
                     bytesRead += record.key().length;
                 if (record.value() != null)
