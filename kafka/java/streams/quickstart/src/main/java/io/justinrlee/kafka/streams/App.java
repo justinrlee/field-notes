@@ -81,7 +81,7 @@ public class App
         }
 
         KafkaStreams kafkaStreams = new KafkaStreams(
-            buildTopology("mqtt", "mqttOut"),
+            buildTopology("input", "output"),
             props
         );
 
