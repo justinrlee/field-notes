@@ -3,3 +3,5 @@ target
 workspace
 .vscode
 .DS_Store
+
+client.properties
