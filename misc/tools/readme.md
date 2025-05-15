@@ -1,0 +1,1 @@
+Most everything here should has been moved to https://github.com/ifnesi/aws-cleanup
