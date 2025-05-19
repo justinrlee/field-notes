@@ -27,75 +27,49 @@ public class App {
         System.out.println("Running application: " + appName);
 
         // Create source table
-        String createSourceTable = """
+        // I don't know of a better way to generate this. The parameters look _close_ to Kafka Java properties, but they're not (especially the schema registry properties).)
+        String createSourceTable = String.format("""
         CREATE TABLE shoe_customers (
-            `kafka_key` VARCHAR(2147483647),
             `order_id` BIGINT,
             `product_id` VARCHAR(2147483647),
             `customer_id` VARCHAR(2147483647),
             `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
         ) WITH (
             'connector' = 'kafka',
-            'topic' = 'flink-shoe_orders',
-            'properties.bootstrap.servers' = 'pkc-312o0.ap-southeast-1.aws.confluent.cloud:9092',
+            'topic' = '%s',
+            'scan.startup.mode' = 'earliest-offset',
+            'properties.bootstrap.servers' = '%s',
             'properties.security.protocol' = 'SASL_SSL',
             'properties.sasl.mechanism' = 'PLAIN',
-            'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="xxx" password="yyy";',
-            'properties.auto.offset.reset' = 'latest',
-
-            'properties.group.id' = 'flink-shoe-customers-2',
-
-            'key.format' = 'raw',
-            'key.fields' = 'kafka_key',
-
-            'value.avro-confluent.url' = 'https://psrc-1dx3ljw.ap-southeast-1.aws.confluent.cloud',
+            'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="%s" password="%s";',
+            'properties.group.id' = '%s',
+            'value.avro-confluent.url' = '%s',
             'value.avro-confluent.basic-auth.credentials-source' = 'USER_INFO',
-            'value.avro-confluent.basic-auth.user-info' = 'aaa:bbb',
+            'value.avro-confluent.basic-auth.user-info' = '%s:%s',
             'value.format' = 'avro-confluent'
         );
-        """;
+        """,
+            properties.getProperty("kafka.topic"),
+            properties.getProperty("kafka.bootstrap.servers"),
+            properties.getProperty("kafka.api.key"),
+            properties.getProperty("kafka.api.secret"),
+            properties.getProperty("kafka.group.id"),
+            properties.getProperty("schema.registry.url"),
+            properties.getProperty("schema.registry.api.key"),
+            properties.getProperty("schema.registry.api.secret")
+        );
 
-        // // 2. Create a view for customer statistics
-        // String createCustomerStatsView = """
-        // CREATE VIEW customer_stats AS
-        // SELECT 
-        //     customer_id,
-        //     COUNT(*) as order_count,
-        //     COUNT(DISTINCT product_id) as unique_products
-        // FROM shoe_customers
-        // GROUP BY customer_id
-        // """;
+        String selectQuery = "SELECT * FROM shoe_customers LIMIT 10;";
 
-        // // 3. Create a table to store results (example with print connector)
-        // String createResultsTable = """
-        // CREATE TABLE high_value_customers (
-        //     customer_id VARCHAR(2147483647),
-        //     order_count BIGINT,
-        //     unique_products BIGINT
-        // ) WITH (
-        //     'connector' = 'print'
-        // )
-        // """;
-
-        // // 4. Insert query to populate results
-        // String insertQuery = """
-        // INSERT INTO high_value_customers
-        // SELECT * FROM customer_stats 
-        // WHERE order_count >= 2
-        // """;
+        System.out.println("Executing CREATE TABLE statement:");
+        System.out.println(createSourceTable);
 
         // Execute DDL statements (these don't return results)
         tableEnv.executeSql(createSourceTable);
-        // tableEnv.executeSql(createCustomerStatsView);
-        // tableEnv.executeSql(createResultsTable);
 
-        // Execute INSERT query - this will start the actual processing
-        // TableResult insertResult = tableEnv.executeSql(insertQuery);
-
-        // If you want to see some immediate results, you can run a SELECT query
-        // Note: In streaming mode, this will show continuous results
+        // Execute SELECT query
+        TableResult sampleResult = tableEnv.executeSql(selectQuery);
         System.out.println("Sample of current results:");
-        TableResult sampleResult = tableEnv.executeSql("SELECT * FROM shoe_customers LIMIT 10");
         sampleResult.print();
 
         // The insert operation runs continuously in streaming mode
