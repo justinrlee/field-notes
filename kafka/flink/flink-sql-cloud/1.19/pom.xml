@@ -15,15 +15,34 @@
     <maven.compiler.release>17</maven.compiler.release>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
-    <flink.version>1.19.2</flink.version>
-    <flink.full.version>3.3.0-1.19</flink.full.version>
-    <slf4j.version>1.7.36</slf4j.version>
+    <!-- <flink.version>1.19.2</flink.version> -->
+    <cp.flink.version>1.19.2-cp2</cp.flink.version>
+    <!-- <flink.full.version>3.3.0-1.19</flink.full.version> -->
+    <cp.flink.full.version>3.3.0-1.19-cp1</cp.flink.full.version>
+    <confluent.platform.version>7.9.1-ce</confluent.platform.version>
     <confluent.version>7.9.1</confluent.version>
   </properties>
 
+  <repositories>
+    <repository>
+      <id>cp-flink-releases</id>
+      <url>https://packages.confluent.io/maven</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <dependencyManagement>
     <dependencies>
-
+      <dependency>
+        <groupId>io.confluent</groupId>
+        <artifactId>kafka-schema-registry-client</artifactId>
+        <version>${confluent.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -35,47 +54,47 @@
       </dependency> -->
 
     <dependency>
-      <groupId>org.apache.flink</groupId>
+      <groupId>io.confluent.flink</groupId>
       <artifactId>flink-streaming-java</artifactId>
-      <version>${flink.version}</version>
+      <version>${cp.flink.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.flink</groupId>
+      <groupId>io.confluent.flink</groupId>
       <artifactId>flink-clients</artifactId>
-      <version>${flink.version}</version>
+      <version>${cp.flink.version}</version>
     </dependency>
 
     <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-sql-client</artifactId>
-        <version>${flink.version}</version>
-        <!-- <scope>provided</scope> -->
+      <groupId>io.confluent.flink</groupId>
+      <artifactId>flink-sql-client</artifactId>
+      <version>${cp.flink.version}</version>
+      <!-- <scope>provided</scope> -->
     </dependency>
     <dependency>
-      <groupId>org.apache.flink</groupId>
+      <groupId>io.confluent.flink</groupId>
       <artifactId>flink-connector-kafka</artifactId>
-      <version>${flink.full.version}</version>
+      <version>${cp.flink.full.version}</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.flink/flink-avro -->
     <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-avro</artifactId>
-        <version>${flink.version}</version>
+      <groupId>io.confluent.flink</groupId>
+      <artifactId>flink-avro</artifactId>
+      <version>${cp.flink.version}</version>
     </dependency>
 
     <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-avro-confluent-registry</artifactId>
-        <version>${flink.version}</version>
+      <groupId>io.confluent.flink</groupId>
+      <artifactId>flink-avro-confluent-registry</artifactId>
+      <version>${cp.flink.version}</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->
     <dependency>
         <groupId>org.apache.kafka</groupId>
         <artifactId>kafka-clients</artifactId>
-        <version>3.9.0</version>
+        <version>${confluent.platform.version}</version>
     </dependency>
 
   </dependencies>
