@@ -1,7 +1,6 @@
 
 
-2025-05-16
-This is still a WIP - Can't get the SQL query to work (works in sql-client, doesn't work in app)
+2025-05-19
 
 General ad-hoc testing:
 * Set up local Flink cluster (session mode)
@@ -12,13 +11,14 @@ General prereqs
 ```bash
 # From home directory
 sudo apt-get update && \
-    sudo apt-get install -y \
-        openjdk-17-jdk-headless \
-        maven
+sudo apt-get install -y \
+    openjdk-17-jdk-headless \
+    maven
 ```
 
 Install CP packages
 ```bash
+# Also from home directory
 curl -O http://packages.confluent.io/archive/7.9/confluent-7.9.1.tar.gz && \
     tar -xzvf confluent-7.9.1.tar.gz && \
     ln -s confluent-7.9.1 confluent && \
@@ -36,21 +36,64 @@ curl -LO https://dlcdn.apache.org/flink/flink-1.20.1/flink-1.20.1-bin-scala_2.12
     export PATH=${PATH}:/home/ubuntu/flink/bin
 ```
 
-Do a maven build, use it to bulk add libraries to flink:
+Start (local) Flink session mode cluster
+```bash
+start-cluster.sh
+
+### Later on, to stop the cluster
+stop-cluster.sh
+```
+
+Ad-hoc query (using local Flink cluster) via sql-client.sh:
+
+```bash
+# Run from home directory
+curl -LO https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.3.0-1.20/flink-sql-connector-kafka-3.3.0-1.20.jar
+curl -LO https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.20.1/flink-sql-avro-confluent-registry-1.20.1.jar
+cp confluent/share/java/kafka/kafka-clients-7.9.1-ce.jar .
+
+sql-client.sh \
+    --jar flink-sql-connector-kafka-3.3.0-1.20.jar \
+    --jar flink-sql-avro-confluent-registry-1.20.1.jar \
+    --jar kafka-clients-7.9.1-ce.jar
+```
+
+Run your ad-hoc query
+
+
+```sql
+CREATE TABLE shoe_customers (
+  `order_id` BIGINT,
+  `product_id` VARCHAR(2147483647),
+  `customer_id` VARCHAR(2147483647),
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'flink-shoe_orders',
+  'properties.bootstrap.servers' = '<BOOTSTRAP_SERVER>',
+  'properties.security.protocol' = 'SASL_SSL',
+  'properties.sasl.mechanism' = 'PLAIN',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="<KAFKA_API_KEY>" password="<KAFKA_API_SECRET>";',
+  'properties.group.id' = 'test-app',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.avro-confluent.url' = '<SCHEMA_REGISTRY_ENDPOINT>',
+  'value.avro-confluent.basic-auth.credentials-source' = 'USER_INFO',
+  'value.avro-confluent.basic-auth.user-info' = '<SCHEMA_REGISTRY_API_KEY>:<SCHEMA_REGISTRY_API_SECRET>',
+  'value.format' = 'avro-confluent'
+);
+
+SELECT * FROM shoe_customers LIMIT 10;
+```
+
+Do a maven build
 
 ```bash
 mvn clean package
-cp target/flink-sql-cloud-1.0-SNAPSHOT.jar /home/ubuntu/flink/lib/
 ```
 
 ```bash
-# should already be populated by .bashrc
-# export PATH=${PATH}:/home/ubuntu/flink/bin
-start-cluster.sh
 
-sql-client.sh
-
-stop-cluster.sh
+flink run /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/target/flink-sql-cloud-1.0-SNAPSHOT.jar -properties.file /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/client.properties -app.name override
 ```
 
 
