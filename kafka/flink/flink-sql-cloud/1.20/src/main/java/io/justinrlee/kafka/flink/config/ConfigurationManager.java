@@ -26,7 +26,7 @@ public class ConfigurationManager {
 
         // Override with any properties passed via command line
         ParameterTool parameters = ParameterTool.fromArgs(args);
-        String externalPropertiesFile = parameters.get("properties.file", "");
+        String externalPropertiesFile = parameters.get("config-file", "");
 
         // System.out.println("External properties file: " + externalPropertiesFile);
         file = new File(externalPropertiesFile);

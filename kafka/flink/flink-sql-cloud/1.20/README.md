@@ -36,6 +36,8 @@ curl -LO https://dlcdn.apache.org/flink/flink-1.20.1/flink-1.20.1-bin-scala_2.12
     export PATH=${PATH}:/home/ubuntu/flink/bin
 ```
 
+(Optional): edit `~/flink/conf/config.yaml`, change rest.bind-address to 0.0.0.0
+
 Start (local) Flink session mode cluster
 ```bash
 start-cluster.sh
@@ -50,7 +52,7 @@ Ad-hoc query (using local Flink cluster) via sql-client.sh:
 # Run from home directory
 curl -LO https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.3.0-1.20/flink-sql-connector-kafka-3.3.0-1.20.jar
 curl -LO https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.20.1/flink-sql-avro-confluent-registry-1.20.1.jar
-cp confluent/share/java/kafka/kafka-clients-7.9.1-ce.jar .
+cp ~/confluent/share/java/kafka/kafka-clients-7.9.1-ce.jar .
 
 sql-client.sh \
     --jar flink-sql-connector-kafka-3.3.0-1.20.jar \
@@ -96,6 +98,19 @@ mvn clean package
 flink run /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/target/flink-sql-cloud-1.0-SNAPSHOT.jar -properties.file /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/client.properties -app.name override
 ```
 
+Note: the job will continue running, even after you ctrl-c out of the application. You have to kill it manually:
+
+Get flink job ID
+
+```bash
+flink list
+```
+
+Cancel flink job
+
+```bash
+flink cancel b24f93013276f99b3a71f70850c1af28
+```
 
 Done so far:
 * Launch local flink cluster
