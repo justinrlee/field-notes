@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.justinrlee.kafka.flink</groupId>
+  <artifactId>flink-sql-cloud</artifactId>
+  <version>1.19</version>
+
+  <name>flink-sql-cloud</name>
+  <url>https://github.com/justinrlee/field-notes/tree/main/kafka/flink</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <flink.version>1.19.2</flink.version>
+    <flink.full.version>3.3.0-1.19</flink.full.version>
+    <slf4j.version>1.7.36</slf4j.version>
+    <confluent.version>7.9.1</confluent.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+      <!-- <dependency>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-core</artifactId>
+        <version>${flink.version}</version>
+      </dependency> -->
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-streaming-java</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-clients</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+
+    <dependency>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-sql-client</artifactId>
+        <version>${flink.version}</version>
+        <!-- <scope>provided</scope> -->
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-kafka</artifactId>
+      <version>${flink.full.version}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.flink/flink-avro -->
+    <dependency>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-avro</artifactId>
+        <version>${flink.version}</version>
+    </dependency>
+
+    <dependency>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-avro-confluent-registry</artifactId>
+        <version>${flink.version}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->
+    <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>3.9.0</version>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+
+    <!-- build.plugins is distinct from build.pluginManagement.plugins -->
+    <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.5.1</version>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                  <createDependencyReducedPom>false</createDependencyReducedPom>
+                  <transformers>
+                      <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                      <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                          <mainClass>io.justinrlee.kafka.flink.App</mainClass>
+                      </transformer>
+                  </transformers>
+                  <filters>
+                      <filter>
+                          <artifact>org.apache.flink:*</artifact>
+                          <excludes>
+                              <exclude>org/apache/flink/shaded/**</exclude>
+                              <exclude>META-INF/*.SF</exclude>
+                              <exclude>META-INF/*.DSA</exclude>
+                              <exclude>META-INF/*.RSA</exclude>
+                          </excludes>
+                      </filter>
+                  </filters>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+    </plugins>
+
+
+    <!-- build.plugins is distinct from build.pluginManagement.plugins -->
+    <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+      <plugins>
+        <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+        <plugin>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.4.0</version>
+        </plugin>
+        <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+        <plugin>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.3.1</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.3.0</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.4.2</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>3.1.2</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>3.1.2</version>
+        </plugin>
+        <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+        <plugin>
+          <artifactId>maven-site-plugin</artifactId>
+          <version>3.12.1</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-project-info-reports-plugin</artifactId>
+          <version>3.6.1</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+  </build>
+</project>
