@@ -36,7 +36,7 @@ curl -LO https://dlcdn.apache.org/flink/flink-1.19.2/flink-1.19.2-bin-scala_2.12
     export PATH=${PATH}:/home/ubuntu/flink/bin
 ```
 
-(Optional): edit `~/flink/conf/config.yaml`, change rest.bind-address to 0.0.0.0
+(Optional): edit `~/flink/conf/config.yaml`, change rest.bind-address to 0.0.0.0, change taskmanager.numberOfTaskSlots to 8
 
 Start (local) Flink session mode cluster
 ```bash
@@ -48,16 +48,18 @@ stop-cluster.sh
 
 Ad-hoc query (using local Flink cluster) via sql-client.sh:
 
+**flink-sql-X are fat JARs**
+
 ```bash
 # Run from home directory
-curl -LO https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.3.0-1.20/flink-sql-connector-kafka-3.3.0-1.20.jar
-curl -LO https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.20.1/flink-sql-avro-confluent-registry-1.20.1.jar
-cp ~/confluent/share/java/kafka/kafka-clients-7.9.1-ce.jar .
+curl -LO https://packages.confluent.io/maven/io/confluent/flink/flink-sql-connector-kafka/3.3.0-1.19-cp1/flink-sql-connector-kafka-3.3.0-1.19-cp1.jar
+curl -LO https://packages.confluent.io/maven/io/confluent/flink/flink-sql-avro-confluent-registry/1.19.2-cp2/flink-sql-avro-confluent-registry-1.19.2-cp2.jar
+curl -LO https://packages.confluent.io/maven/org/apache/kafka/kafka-clients/7.9.1-ce/kafka-clients-7.9.1-ce.jar
 
 sql-client.sh \
-    --jar flink-sql-connector-kafka-3.3.0-1.20.jar \
-    --jar flink-sql-avro-confluent-registry-1.20.1.jar \
-    --jar kafka-clients-7.9.1-ce.jar
+  --jar flink-sql-connector-kafka-3.3.0-1.19-cp1.jar \
+  --jar flink-sql-avro-confluent-registry-1.19.2-cp2.jar \
+  --jar kafka-clients-7.9.1-ce.jar
 ```
 
 Run your ad-hoc query

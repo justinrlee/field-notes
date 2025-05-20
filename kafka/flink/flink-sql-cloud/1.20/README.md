@@ -95,7 +95,7 @@ mvn clean package
 
 ```bash
 
-flink run /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/target/flink-sql-cloud-1.0-SNAPSHOT.jar -properties.file /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/client.properties -app.name override
+flink run /home/ubuntu/git/justinrlee/field-notes/kafka/flink/flink-sql-cloud/1.20/target/flink-sql-cloud-1.0-SNAPSHOT.jar -config-file client.properties -app.name override
 ```
 
 Note: the job will continue running, even after you ctrl-c out of the application. You have to kill it manually:
