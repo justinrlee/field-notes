@@ -2,10 +2,24 @@
 
 2025-05-19
 
-General ad-hoc testing:
+Eventually, this document should walk through the following:
+
+* Set up CC environment
+* Install various prereqs on EC2 instance
 * Set up local Flink cluster (session mode)
+* Use SQL Client
+    * Run various interactive queries
+    * DDL and job creation/deletion
 * Compile JAR
-* Submit JAR to Flink cluster
+* Submit JAR to Flink cluster using `flink run`
+* Stop Flink cluster
+* Install FKO
+* Run JAR on FKO
+* Install CMF and CFK
+* Run JAR via CMF/CFK
+
+Right now, the document is a list of semi-related notes and commands to do the above.
+See also: README-CMF.md
 
 General prereqs
 ```bash
