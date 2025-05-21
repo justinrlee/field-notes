@@ -11,10 +11,11 @@ Eventually, this document should walk through the following:
     * Run various interactive queries
     * DDL and job creation/deletion
 * Compile JAR
-* Submit JAR to Flink cluster using `flink run`
+* Submit JAR to local Flink cluster using `flink run`
 * Stop Flink cluster
 * Install FKO
-* Run JAR on FKO
+* Run JAR on FKO, using HTTP
+* Run JAR on FKO, using S3
 * Install CMF and CFK
 * Run JAR via CMF/CFK
 
