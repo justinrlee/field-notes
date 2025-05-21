@@ -1,0 +1,40 @@
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: rekey-products
+spec:
+  image: "justinrlee/cp-flink:1.19.2-cp2-java17-s3-10"
+  flinkVersion: v1_19
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+    user.artifacts.raw-http-enabled: "true"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  job:
+    jarURI: s3://justin-confluent-apse1/flink-sql-cloud-1.19.jar
+    entryClass: io.justinrlee.kafka.flink.RekeyProducts
+      # jarURI: s3://justin-confluent-apse1/flink-sql-cloud-1.19.jar
+    args:
+    - --config-file
+    - /client/client.properties
+    parallelism: 2
+    upgradeMode: stateless
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+          volumeMounts:
+            - mountPath: /client
+              name: client
+      volumes:
+        - name: client
+          secret:
+            secretName: flink-properties
