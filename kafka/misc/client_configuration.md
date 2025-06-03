@@ -5,10 +5,13 @@ A Kafka cluster consists of a cluster of Kafka brokers that each host some subse
 _This document is from the perspective of a single Kafka client that talks to a single set of Kafka listeners, regardless of how many listeners there may be_
 
 The Kafka client protocol follows this high-level workflow:
+
 * The Kafka client is configured with one or more brokers (called `bootstrap.servers`) to bootstrap the client session
 * The Kafka client will connect to one of the bootstrap servers, using provided connection settings, and request information about all of the brokers in the cluster ("metadata request" and corresponding "metadata response")
 * For subsequent requests to the cluster, the client will connect directly to the individual brokers as necessary
 * As part of the Kafka protocol, clients will periodically receive updated metadata to account for broker changes
+
+## Connection Concepts
 
 A Kafka client needs the following information to connect to a Kafka cluster:
 
@@ -26,9 +29,13 @@ A Kafka client needs the following information to connect to a Kafka cluster:
     * IAM
 
 † If you're using mTLS, then mTLS covers both encryption and authorization and you don't generally use SASL, unless you have a listener configured to support both mTLS and SASL (see KIP-684).
+
 †† IAM is not technically part of the Apache Kafka protocol, but is provided as an add-on by Amazon
 
+## Connection Modes
+
 The above options results in approximately these valid configuration modes:
+
 * Unencrypted and unauthenticated
 * Unecrypted with PLAIN (SASL_PLAINTEXT w/ SASL mechanism PLAIN)
 * Unencrypted with SCRAM (SASL_PLAINTEXT w/ SASL mechanism SCRAM-SHA-256 or SCRAM-SHA-512)
@@ -41,6 +48,8 @@ The above options results in approximately these valid configuration modes:
 * Encrypted with OAUTHBEARER
 * Encrypted with IAM
 * Encrypted and authenticated with mTLS (mTLS)
+
+## Kafka Java Client Connectivity Test
 
 The best way "native" I've found to test connectivity is with the Kafka Java libraries, which assume you have the Kafka package and a Java runtime installed. Kafka binary packages can be downloaded from the Apache Kafka website (https://kafka.apache.org/downloads); you can also use the Confluent distributions of the same (https://docs.confluent.io/platform/current/installation/installing_cp/zip-tar.html).
 
@@ -81,7 +90,7 @@ If all does not go well, try turning on DEBUG (edit `./etc/tools-log4j.propertie
 
 _Note that even though the bootstrap server is provided in the properties file, it also must be provided to the CLI client directly._
 
-### Sample client configuration files for different security configurations
+## Sample client configuration files for different security configurations
 
 Unencrypted and unauthenticated
 
