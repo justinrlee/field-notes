@@ -1,6 +1,5 @@
 
-curl -O https://packages.confluent.io/archive/7.7/confluent-7.7.1.tar.gz
-# curl -O https://packages.confluent.io/archive/7.7/confluent-community-7.7.1.tar.gz
+curl -O https://packages.confluent.io/archive/8.0/confluent-8.0.0.tar.gz
 
 curl -O https://packages.confluent.io/confluent-cli/archives/latest/confluent_linux_amd64.tar.gz
 curl -O https://packages.confluent.io/confluent-cli/archives/latest/confluent_linux_arm64.tar.gz

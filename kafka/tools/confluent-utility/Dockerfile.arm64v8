@@ -14,6 +14,7 @@ RUN apt-get update \
     dnsutils \
     jq \
     unzip \
+    kafkacat \
   && rm -rf /var/lib/apt/lists/*
 
 # Separate command cause of the apt repo stuff
@@ -25,7 +26,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64 \
 
 ADD kubectl-arm64 /usr/local/bin/kubectl
 
-ADD confluent-7.7.1.tar.gz /opt
+ADD confluent-8.0.0.tar.gz /opt
 
 ADD confluent_linux_arm64.tar.gz /opt
 
@@ -35,7 +36,7 @@ RUN unzip /opt/awscli-exe-linux-aarch64.zip && /aws/install && rm -r /aws
 
 RUN ln -s /usr/bin/kafkacat /usr/bin/kcat
 
-ENV PATH="${PATH}:/opt/confluent-7.7.1/bin:/opt/confluent"
+ENV PATH="${PATH}:/opt/confluent-8.0.0/bin:/opt/confluent"
 
 RUN chmod +x /usr/local/bin/kubectl
 
