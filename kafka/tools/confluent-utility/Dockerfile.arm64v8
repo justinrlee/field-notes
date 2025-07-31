@@ -4,6 +4,7 @@ FROM eclipse-temurin:17-jdk-focal
 RUN apt-get update \
   && apt-get install -y \
     software-properties-common \
+    iputils-ping \
     kafkacat \
     vim \
     curl \
@@ -36,10 +37,12 @@ RUN unzip /opt/awscli-exe-linux-aarch64.zip && /aws/install && rm -r /aws
 
 RUN ln -s /usr/bin/kafkacat /usr/bin/kcat
 
-ENV PATH="${PATH}:/opt/confluent-8.0.0/bin:/opt/confluent"
+ENV PATH="${PATH}:/opt/confluent:/opt/confluent-8.0.0/bin"
 
 RUN chmod +x /usr/local/bin/kubectl
 
 WORKDIR /root
 
 CMD ["tail", "-f", "/dev/null"]
+ENTRYPOINT []
+
