@@ -32,8 +32,10 @@ ADD confluent-8.0.0.tar.gz /opt
 ADD confluent_linux_amd64.tar.gz /opt
 
 ADD awscli-exe-linux-x86_64.zip /opt
-
 RUN unzip /opt/awscli-exe-linux-x86_64.zip && /aws/install && rm -r /aws
+
+ADD vault_1.20.1_linux_amd64.zip /opt
+RUN unzip /opt/vault_1.20.1_linux_amd64.zip -d /usr/local/bin
 
 RUN ln -s /usr/bin/kafkacat /usr/bin/kcat
 
