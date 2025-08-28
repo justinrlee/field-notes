@@ -1,3 +1,5 @@
 *.tar.gz
 *.zip
 kubectl*
+tag
+latest
