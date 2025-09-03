@@ -1,0 +1,13 @@
+----- Create schema and tables
+ALTER SESSION SET CONTAINER=ORCLPDB1;
+CREATE USER ORDERMGMT IDENTIFIED BY kafka;
+
+-- grant priviledges
+GRANT RESOURCE TO ORDERMGMT;
+GRANT CREATE SESSION TO ORDERMGMT;
+GRANT EXECUTE ON DBMS_LOCK TO ORDERMGMT;
+
+-- give right to write data to tablespace
+ALTER USER ORDERMGMT quota 50m on USERS;
+
+exit;
