@@ -12,3 +12,4 @@ Structure:
     * mtls-validator - used to verify a given set of client certificates work against a given CA certificate (doesn't currently work)
     * terraform - quick introduction to Terraform (using AWS)
     * tools - cleanup scripts (most of which have been moved to `github.com/ifnesi/aws-cleanup`)
+    * oracle - setup scripts to configure an Oracle instance with hello world xstream configurations
