@@ -22,8 +22,8 @@ public class JsonSchemaJsonValidator extends ScalarFunction {
 
    private static final Logger logger = LogManager.getLogger();
 
-   public boolean eval(String inputRecord, String jsonSchemaB64) {
-      logger.info("Input record: {}", inputRecord);
+   public boolean eval(String jsonString, String jsonSchemaB64) {
+      logger.info("Input record: {}", jsonString);
       logger.info("JSON schema base64: {}", jsonSchemaB64);
 
       String jsonSchemaJson = new String(Base64.getDecoder().decode(jsonSchemaB64));
@@ -34,7 +34,7 @@ public class JsonSchemaJsonValidator extends ScalarFunction {
       Schema schema = new SchemaLoader(schemaJson).load();
 
       Validator validator = Validator.create(schema, new ValidatorConfig(FormatValidationPolicy.ALWAYS));
-      JsonValue inputJson = new JsonParser(inputRecord).parse();
+      JsonValue inputJson = new JsonParser(jsonString).parse();
 
 
       ValidationFailure failure = validator.validate(inputJson);
