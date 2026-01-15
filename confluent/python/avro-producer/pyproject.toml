@@ -1,0 +1,9 @@
+[project]
+name = "avro-producer"
+version = "0.1.0"
+description = "Produce avro-serialized messages to Kafka"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "confluent-kafka[avro,schemaregistry]>=2.13.0",
+]

@@ -1,0 +1,11 @@
+{
+    "name": "key",
+    "namespace": "io.justinrlee.confluent.python.d1",
+    "type": "record",
+    "fields": [
+        {
+            "name": "eventId",
+            "type": "string"
+        }
+    ]
+}

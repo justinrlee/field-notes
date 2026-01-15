@@ -1,0 +1,63 @@
+{
+  "fields": [
+    {
+      "default": null,
+      "name": "addressId",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "street",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "streetExt",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "locality",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "city",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "postCode",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "country",
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  ],
+  "name": "address",
+  "namespace": "io.justinrlee.confluent.python.d1",
+  "type": "record"
+}

@@ -1,0 +1,24 @@
+[kafka_client]
+# Bootstrap broker(s) (host[:port])
+bootstrap.servers = pkc-312o0.ap-southeast-1.aws.confluent.cloud:9092
+security.protocol = sasl_ssl
+sasl.mechanisms = PLAIN
+sasl.username = CONFLUENT_CLOUD_API_KEY
+sasl.password = CONFLUENT_CLOUD_API_SECRET
+
+# Topic name
+
+# Avro specific record (true or false)
+# specific = true
+
+[schema_registry]
+# Schema Registry URL (http(s)://host[:port])
+url = https://psrc-13rnnlx.ap-southeast-1.aws.confluent.cloud
+basic.auth.user.info = SCHEMA_REGISTRY_API_KEY:SCHEMA_REGISTRY_API_SECRET
+
+[general]
+sample_data_directory = ./input/messages
+
+key_schema = ./input/schema/key.avsc
+value_schema = ./input/schema/value.avsc
+topic = python-producer-demo
