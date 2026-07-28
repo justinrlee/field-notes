@@ -219,7 +219,7 @@ public class HelloWorldTableAggregate {
 
         return TableDescriptor.forConnector("upsert-kafka")
             .schema(Schema.newBuilder()
-                .column("key", DataTypes.STRING())
+                .column("key", DataTypes.STRING().notNull())
                 .column("id", DataTypes.STRING())
                 .column("sum", DataTypes.DOUBLE())
                 .column("count", DataTypes.BIGINT())
