@@ -2,6 +2,9 @@
 Miscellaneous samples.
 
 Structure:
+* demo
+    * fraud-agent - real-time fraud detection with Confluent Cloud Flink and Streaming Agents (Claude on Bedrock)
+    * gaming-agent - player-struggle-to-offer demo with Confluent Cloud Streaming Agents, including responsible-monetization guardrails
 * confluent
     * assets - various assets for personal automation (pre-generated testing CA certificate, SSL generation configs, etc.)
     * flink - small scripts to start up small Flink clusters with Confluent

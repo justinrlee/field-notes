@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in. These are the ONLY values you need to
+# provide — region, model, names, and sizing are all preset in main.tf.
+
+# Confluent Cloud API key/secret (Cloud resource management key).
+# Create one: https://confluent.cloud → top-right menu → API keys → "Cloud resource management".
+confluent_cloud_api_key    = "XXXXXXXXXXXXXXXX"
+confluent_cloud_api_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# AWS IAM user credentials with permission to invoke Amazon Bedrock
+# (action bedrock:InvokeModel) in us-east-1. Use a long-lived IAM user access
+# key, not a temporary/STS key.
+aws_access_key_id     = "AKIAxxxxxxxxxxxxxxxx"
+aws_secret_access_key = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# User-friendly identifier
+identifier = "justin"
+# Default region is us-east-1
+region = "us-east-1"
+# Override for non-US regions
+bedrock_model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
