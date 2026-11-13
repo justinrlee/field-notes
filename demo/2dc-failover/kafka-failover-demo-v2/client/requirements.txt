@@ -1,0 +1,7 @@
+# Exact pins (PLAN.md, Phase 0). All three install from prebuilt wheels on
+# Ubuntu 24.04's Python 3.12 (amd64 and arm64). Install with
+# --only-binary=:all:, so a missing wheel fails the install instead of reaching
+# for a compiler.
+confluent-kafka==2.16.0
+fastapi==0.143.2
+uvicorn==0.54.0
