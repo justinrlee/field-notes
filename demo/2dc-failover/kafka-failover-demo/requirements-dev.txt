@@ -1,0 +1,4 @@
+# Unit tests for client/state.py and consumer.SequenceTracker. No broker needed.
+#   pip install -r requirements-dev.txt && pytest
+-r client/requirements.txt
+pytest==9.1.1

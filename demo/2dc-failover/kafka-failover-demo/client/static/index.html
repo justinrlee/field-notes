@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kafka demo client</title>
+<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%239aa7b3'/%3E%3C/svg%3E">
+<style>
+  /* Design tokens. One loud element (the state band); everything else stays quiet. */
+  :root {
+    --bg: #e9eef2;
+    --surface: #f7f9fb;
+    --ink: #18222d;
+    --muted: #56636f;
+    --line: #c9d2da;
+    --ok: #1e8e5a;
+    --wait: #c98a00;
+    --wait-ink: #845900;
+    --fail: #c23b2e;
+    --read: #2f64c8;
+    --idle: #9aa7b3;
+    --ok-tint: #dbeee4;
+    --wait-tint: #f6e8c8;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11171d;
+      --surface: #19222b;
+      --ink: #e2e8ed;
+      --muted: #94a1ad;
+      --line: #2c3742;
+      --ok: #3cb97e;
+      --wait: #e5a520;
+      --wait-ink: #f0bd4a;
+      --fail: #e5594c;
+      --read: #6493ec;
+      --idle: #4c5a68;
+      --ok-tint: #16301f;
+      --wait-tint: #382c10;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.45 "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 20px clamp(16px, 3vw, 32px) 48px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 24px; margin-bottom: 16px; }
+  h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .subtitle { margin: 2px 0 0; color: var(--muted); }
+  .ui-link { margin: 0 0 0 auto; display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--muted); }
+  .ui-link .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); }
+  .ui-link[data-state="live"] .dot { background: var(--ok); }
+  .ui-link[data-state="lost"] .dot { background: var(--fail); }
+  .ui-link[data-state="lost"] { color: var(--fail); }
+
+  /* State band */
+  .band {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 28px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    background: var(--surface);
+    border-left: 12px solid var(--idle);
+    border-radius: 4px 10px 10px 4px;
+    transition: background-color 300ms ease;
+  }
+  .band[data-state="connected"] { border-left-color: var(--ok); }
+  .band[data-state="recovered"] { border-left-color: var(--ok); background: var(--ok-tint); }
+  .band[data-state="retrying"]  { border-left-color: var(--wait); background: var(--wait-tint); }
+  .band[data-state="problem"]   { border-left-color: var(--fail); }
+  .lamp {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--idle);
+    box-shadow: inset 0 -5px 0 rgb(0 0 0 / 0.14);
+  }
+  .band[data-state="connected"] .lamp,
+  .band[data-state="recovered"] .lamp { background: var(--ok); }
+  .band[data-state="retrying"] .lamp { background: var(--wait); animation: halo 1.6s ease-out infinite; }
+  .band[data-state="problem"] .lamp { background: var(--fail); }
+  @keyframes halo {
+    0%   { box-shadow: inset 0 -5px 0 rgb(0 0 0 / 0.14), 0 0 0 0 color-mix(in srgb, var(--wait) 60%, transparent); }
+    100% { box-shadow: inset 0 -5px 0 rgb(0 0 0 / 0.14), 0 0 0 22px transparent; }
+  }
+  .band-title { font-size: clamp(1.75rem, 3.4vw, 2.6rem); font-weight: 650; line-height: 1.08; letter-spacing: -0.02em; margin: 0; }
+  .band-detail { margin: 8px 0 0; max-width: 62ch; }
+  .band-meta { grid-column: 2 / -1; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 0.875rem; color: var(--muted); }
+  .band-meta .error { color: var(--wait-ink); }
+  .timer { text-align: right; }
+  .timer-value { display: block; font-size: clamp(2.6rem, 6.5vw, 4.25rem); font-weight: 650; line-height: 1; letter-spacing: -0.03em; }
+  .timer-caption { display: block; margin-top: 4px; font-size: 0.875rem; color: var(--muted); }
+
+  /* Main layout */
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; align-items: start; }
+  .section-title { font-size: 1rem; font-weight: 600; margin: 0 0 10px; }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 20px; }
+  button {
+    font: inherit; font-weight: 600;
+    padding: 8px 16px; border-radius: 6px;
+    border: 1.5px solid var(--ink); background: var(--ink); color: var(--surface);
+    cursor: pointer;
+  }
+  button.quiet { background: transparent; color: var(--ink); }
+  button:active { transform: translateY(1px); }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--read); outline-offset: 2px; }
+  .rate { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .rate input { width: 160px; accent-color: var(--ink); }
+  .rate output { min-width: 2ch; font-weight: 600; }
+  .control-note { flex-basis: 100%; margin: 0; min-height: 1.45em; font-size: 0.875rem; color: var(--wait-ink); }
+
+  .figures { display: flex; flex-wrap: wrap; margin: 0 0 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .figure { display: flex; flex-direction: column; min-width: 120px; padding: 14px 24px 14px 0; }
+  .figure + .figure { padding-left: 24px; border-left: 1px solid var(--line); }
+  .figure dd { order: 1; margin: 0; font-size: 1.9rem; font-weight: 600; line-height: 1.1; }
+  .figure dt { order: 2; font-size: 0.875rem; color: var(--muted); }
+  .figure.waiting dd, .figure.warn dd { color: var(--wait-ink); }
+  .figure.alert dd { color: var(--fail); }
+  .figure dd.small { font-size: 1.1rem; line-height: 1.9; }
+  .meter { order: 3; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .meter span { display: block; height: 100%; width: 0; background: var(--wait); transition: width 200ms linear; }
+
+  .tiles { display: flex; flex-wrap: wrap; gap: 3px; padding: 14px; min-height: 64px; background: var(--surface); border-radius: 8px; }
+  .tile { width: 12px; height: 12px; border-radius: 2px; background: var(--idle); }
+  .tile.queued { background: transparent; box-shadow: inset 0 0 0 2px var(--wait); }
+  .tile.acked { background: var(--ok); }
+  .tile.failed, .tile.gap { background: var(--fail); }
+  .tile.ok { background: var(--read); }
+  .tile.duplicate { background: var(--wait); }
+  .empty { margin: 0 0 10px; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; padding: 0; margin: 12px 0 0; font-size: 0.875rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 8px; }
+
+  aside section + section { margin-top: 28px; }
+  .timeline { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
+  .timeline li { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 6px 0 6px 12px; border-left: 3px solid var(--idle); }
+  .timeline li + li { margin-top: 2px; }
+  .timeline time { color: var(--muted); font-size: 0.875rem; padding-top: 1px; }
+  .timeline [data-kind="outage"], .timeline [data-kind="backpressure"], .timeline [data-kind="duplicate"] { border-left-color: var(--wait); }
+  .timeline [data-kind="recovered"], .timeline [data-kind="connected"] { border-left-color: var(--ok); }
+  .timeline [data-kind="failed"], .timeline [data-kind="gap"], .timeline [data-kind="fatal"], .timeline [data-kind="topic"] { border-left-color: var(--fail); }
+  .timeline [data-kind="cluster"], .timeline [data-kind="resume"], .timeline [data-kind="rebalance"] { border-left-color: var(--read); }
+
+  /* One row per setting. Keys stay on one line; a value too long to fit beside
+     its key (the gateway address) wraps below it, still right-aligned. */
+  .settings { margin: 0; font-size: 0.875rem; }
+  .settings div { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 16px; padding: 2px 0; }
+  .settings dt { color: var(--muted); }
+  .settings dd { margin: 0 0 0 auto; min-width: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+  .brokers { list-style: none; margin: 0; padding: 0; font-size: 0.875rem; }
+  .brokers li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+  .brokers .name { color: var(--muted); overflow-wrap: anywhere; }
+  .brokers .up { color: var(--ok); font-weight: 600; }
+  .brokers .down { color: var(--wait-ink); font-weight: 600; }
+  .brokers .idle { color: var(--muted); }
+
+  @media (max-width: 880px) {
+    .main { grid-template-columns: 1fr; }
+    .band { grid-template-columns: auto minmax(0, 1fr); padding: 22px; }
+    .timer { grid-column: 1 / -1; text-align: left; }
+    .band-meta { grid-column: 1 / -1; }
+    .rate { margin-left: 0; }
+    .lamp { width: 48px; height: 48px; }
+    .figures { display: grid; grid-template-columns: 1fr 1fr; }
+    .figure, .figure + .figure { padding: 12px 0; border-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .band, .meter span { transition: none; }
+    .lamp { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <h1 id="client-name">Kafka demo client</h1>
+      <p class="subtitle" id="client-desc">Loading client details</p>
+    </div>
+    <p class="ui-link" id="ui-link" data-state="pending">
+      <span class="dot" aria-hidden="true"></span><span id="ui-link-text">Connecting to the app</span>
+    </p>
+  </header>
+
+  <section class="band" id="band" data-state="connecting">
+    <div class="lamp" aria-hidden="true"></div>
+    <div>
+      <h2 class="band-title" id="band-title" aria-live="polite">Connecting to Kafka</h2>
+      <p class="band-detail" id="band-detail">Waiting for the first response through the gateway.</p>
+    </div>
+    <div class="timer" id="timer" hidden>
+      <span class="timer-value" id="timer-value"></span>
+      <span class="timer-caption" id="timer-caption"></span>
+    </div>
+    <p class="band-meta" id="band-meta"></p>
+  </section>
+
+  <div class="main">
+    <div>
+      <div class="controls" id="controls" hidden>
+        <button type="button" id="send-one">Send 1 message</button>
+        <button type="button" class="quiet" id="send-many">Send 100 messages</button>
+        <label class="rate">Messages per second
+          <input type="range" id="rate" min="0" max="50" step="1" value="5">
+          <output id="rate-value" for="rate">5</output>
+        </label>
+        <p class="control-note" id="control-note" role="status"></p>
+      </div>
+
+      <dl class="figures" id="figures"></dl>
+
+      <h2 class="section-title" id="tiles-title">Recent messages</h2>
+      <p class="empty" id="tiles-empty">No messages yet.</p>
+      <div class="tiles" id="tiles"></div>
+      <ul class="legend" id="legend"></ul>
+    </div>
+
+    <aside>
+      <section>
+        <h2 class="section-title">What happened</h2>
+        <ol class="timeline" id="timeline"></ol>
+      </section>
+      <section>
+        <h2 class="section-title">Client settings</h2>
+        <dl class="settings" id="settings"></dl>
+      </section>
+      <section>
+        <h2 class="section-title">Broker connections</h2>
+        <ul class="brokers" id="brokers"></ul>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const MAX_TILES = 600;
+  const MAX_TIMELINE = 200;
+  const RECOVERED_FLASH_MS = 10000;   // how long "Back online" stays up after an outage
+  const $ = (id) => document.getElementById(id);
+
+  const ROLE_VIEW = {
+    producer: {
+      figures: [["pending", "Waiting to send"], ["acked", "Delivered"], ["failed", "Failed"], ["buffer_full", "Refused, buffer full"]],
+      legend: [["queued", "Waiting to send"], ["acked", "Delivered"], ["failed", "Failed"]],
+      tilesTitle: "Recent messages sent",
+      empty: "No messages yet. Send one, or raise the rate.",
+      connected: "Messages are delivered as soon as they're sent.",
+      retrying: "The app is running normally. New messages wait in the send buffer and go out when Kafka is back.",
+      topicProblem: "New messages wait in the send buffer, and fail if the topic isn't usable before their timeout.",
+    },
+    consumer: {
+      figures: [["consumed", "Received"], ["missing", "Missing"], ["duplicates", "Duplicates"], ["rebalances", "Rebalances"]],
+      legend: [["ok", "Received in order"], ["gap", "Arrived after a gap"], ["duplicate", "Duplicate or replay"]],
+      tilesTitle: "Recent messages received",
+      empty: "No messages received yet.",
+      connected: "Reading new messages as they arrive.",
+      retrying: "The app is running normally. It will continue from its last committed position when Kafka is back.",
+      topicProblem: "There's nothing to read until the topic is usable.",
+    },
+  };
+  const STATE_LABEL = {
+    queued: "waiting to send", acked: "delivered", failed: "failed",
+    ok: "received in order", first: "received", gap: "arrived after a gap", duplicate: "duplicate or replay",
+  };
+  const ALERT_KEYS = new Set(["failed", "missing"]);          // data was lost
+  const WARN_KEYS = new Set(["buffer_full", "duplicates"]);   // expected under at-least-once or backpressure
+
+  let view = ROLE_VIEW.producer;
+  let client = null;
+  let conn = null;
+  let skew = 0;                    // server clock minus browser clock
+  let lastShownState = null;
+  const tiles = new Map();         // message id -> element
+  const pendingTiles = new Map();  // message id -> latest update not yet drawn
+  let tileFlushScheduled = false;
+  let rateDebounce = null;
+  let rateDragging = false;
+
+  const serverNow = () => Date.now() + skew;
+
+  // ------------------------------------------------------------ formatting
+
+  function fmtClock(ms) {
+    const tenths = Math.floor(Math.max(0, ms) / 100);
+    const minutes = Math.floor(tenths / 600);
+    const seconds = ((tenths % 600) / 10).toFixed(1).padStart(4, "0");
+    return `${minutes}:${seconds}`;
+  }
+  const fmtSeconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
+  const fmtCount = (n) => Number(n || 0).toLocaleString();
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour12: false });
+
+  function fmtSetting(key, value) {
+    const n = Number(value);
+    if (key.endsWith(".ms") && Number.isFinite(n)) {
+      if (n >= 60000 && n % 60000 === 0) return `${n / 60000} min`;
+      if (n >= 1000) return `${n / 1000} s`;
+      return `${n} ms`;
+    }
+    if (value === true || value === "true") return "on";
+    if (value === false || value === "false") return "off";
+    return String(value);
+  }
+
+  function tileTitle(m) {
+    const label = STATE_LABEL[m.state] || m.state;
+    if (client && client.role === "consumer") {
+      return `Message ${m.seq} from ${m.producer_id} on partition ${m.partition}: ${label} (offset ${m.offset})`;
+    }
+    let text = m.partition != null ? `Message ${m.seq} on partition ${m.partition}: ${label}` : `Message ${m.seq}: ${label}`;
+    if (m.state === "acked") text += ` (offset ${m.offset})`;
+    if (m.error) text += `. ${m.error}`;
+    return text;
+  }
+
+  // ------------------------------------------------------------ state band
+
+  function displayState() {
+    if (!conn) return "connecting";
+    if (conn.state === "connected" && conn.last_outage_ms != null &&
+        serverNow() - conn.since < RECOVERED_FLASH_MS) return "recovered";
+    return conn.state;
+  }
+
+  function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
+
+  function renderBand() {
+    let s = displayState();
+    // Kafka answers, but the demo topic is missing or unreadable. Shown as its
+    // own state: "Connected" alone would hide why nothing is moving.
+    if ((s === "connected" || s === "recovered") && conn.topic_problem) s = "problem";
+    $("band").dataset.state = s;
+    let title, detail, timerValue = null, timerCaption = "";
+
+    if (s === "connecting") {
+      title = "Connecting to Kafka";
+      detail = "Waiting for the first response through the gateway.";
+    } else if (s === "connected") {
+      title = "Connected to Kafka";
+      detail = view.connected;
+    } else if (s === "problem") {
+      title = "Connected, but the topic isn't usable";
+      detail = `${conn.topic_problem}. ${view.topicProblem}`;
+    } else if (s === "recovered") {
+      title = "Back online";
+      detail = `Reconnected after ${fmtSeconds(conn.last_outage_ms)}. ${view.connected}`;
+      timerValue = fmtClock(conn.last_outage_ms);
+      timerCaption = "total time without Kafka";
+    } else {
+      const n = conn.attempts || 0;
+      title = "Waiting for Kafka";
+      detail = `${view.retrying} ${n} connection attempt${n === 1 ? "" : "s"} so far.`;
+      timerValue = fmtClock(serverNow() - conn.outage_started);
+      timerCaption = "without Kafka";
+    }
+
+    setText($("band-title"), title);
+    setText($("band-detail"), detail);
+    $("timer").hidden = timerValue == null;
+    if (timerValue != null) {
+      setText($("timer-value"), timerValue);
+      setText($("timer-caption"), timerCaption);
+    }
+
+    const meta = $("band-meta");
+    const parts = [`Cluster ${conn && conn.cluster_id ? conn.cluster_id : "not known yet"}`];
+    if (conn && conn.state === "connected" && conn.probe_latency_ms != null) parts.push(`Round trip ${conn.probe_latency_ms} ms`);
+    const signature = parts.join("|") + (s === "retrying" && conn.last_error ? `|${conn.last_error}` : "");
+    if (meta.dataset.signature !== signature) {
+      meta.dataset.signature = signature;
+      meta.replaceChildren(...parts.map((p) => Object.assign(document.createElement("span"), { textContent: p })));
+      if (s === "retrying" && conn.last_error) {
+        meta.append(Object.assign(document.createElement("span"), { className: "error", textContent: `Last error: ${conn.last_error}` }));
+      }
+    }
+
+    if (s !== lastShownState) {
+      lastShownState = s;
+      const colorVar = { retrying: "--wait", connecting: "--idle", problem: "--fail" }[s] || "--ok";
+      setFavicon(getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim());
+      const word = { connecting: "connecting", connected: "connected", recovered: "back online", retrying: "waiting for Kafka", problem: "topic not usable" }[s];
+      document.title = `${client ? client.client_id : "Kafka client"} (${word})`;
+    }
+  }
+
+  function setFavicon(color) {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='${color}'/></svg>`;
+    $("favicon").href = "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+
+  // ------------------------------------------------------------ figures
+
+  function buildFigures() {
+    const dl = $("figures");
+    dl.replaceChildren();
+    for (const [key, label] of view.figures) dl.append(makeFigure(key, label));
+    if (client.role === "producer") {
+      const fig = makeFigure("buffer", "Send buffer used");
+      const meter = document.createElement("div");
+      meter.className = "meter";
+      meter.append(Object.assign(document.createElement("span"), { id: "meter-fill" }));
+      fig.append(meter);
+      dl.append(fig);
+    } else {
+      const fig = makeFigure("group", "Consumer group");
+      fig.querySelector("dd").classList.add("small");
+      dl.append(fig);
+    }
+  }
+
+  function makeFigure(key, label) {
+    const div = document.createElement("div");
+    div.className = "figure";
+    div.id = `figure-${key}`;
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    dd.id = `fig-${key}`;
+    dd.textContent = "0";
+    div.append(dt, dd);
+    return div;
+  }
+
+  function applyMetrics(m) {
+    conn = m.connection;
+    const c = m.counters;
+    for (const [key] of view.figures) {
+      const dd = $(`fig-${key}`);
+      if (!dd) continue;
+      setText(dd, fmtCount(c[key]));
+      const fig = $(`figure-${key}`);
+      fig.classList.toggle("alert", ALERT_KEYS.has(key) && c[key] > 0);
+      fig.classList.toggle("warn", WARN_KEYS.has(key) && c[key] > 0);
+      fig.classList.toggle("waiting", key === "pending" && c[key] > 0 && conn.state !== "connected");
+    }
+
+    if (client && client.role === "producer" && $("fig-buffer")) {
+      const { msg_cnt: count = 0, msg_max: max } = m.buffer || {};
+      const pct = max ? Math.min(100, (100 * count) / max) : 0;
+      setText($("fig-buffer"), count > 0 && pct < 1 ? "<1%" : `${Math.round(pct)}%`);
+      $("meter-fill").style.width = `${pct}%`;
+      $("figure-buffer").classList.toggle("warn", pct >= 99);
+      if (!rateDragging && m.rate != null) {
+        $("rate").value = m.rate;
+        setText($("rate-value"), String(m.rate));
+      }
+    }
+    if (client && client.role === "consumer" && $("fig-group")) {
+      const g = m.group;
+      setText($("fig-group"), g ? `${g.state}, ${g.join_state}` : "Not joined yet");
+    }
+
+    renderBrokers(m.brokers || {});
+    renderBand();
+  }
+
+  // librdkafka broker states (STATISTICS.md) in plain words. librdkafka only
+  // keeps connections it needs, so a broker that isn't UP while the client is
+  // connected is idle, not broken.
+  function brokerLabel(state, clientConnected) {
+    if (state === "UP" || state === "UPDATE") return ["connected", "up"];
+    if (clientConnected) return [state === "INIT" ? "not used yet" : "idle", "idle"];
+    if (state === "INIT") return ["not connected yet", "down"];
+    if (state === "DOWN") return ["down", "down"];
+    return ["connecting", "down"];
+  }
+
+  function renderBrokers(brokers) {
+    const list = $("brokers");
+    const entries = Object.entries(brokers);
+    const clientConnected = !!conn && conn.state === "connected";
+    const signature = `${clientConnected}|` + entries.map(([n, b]) => `${n}=${b.state}`).join("|");
+    if (list.dataset.signature === signature) return;
+    list.dataset.signature = signature;
+    list.replaceChildren();
+    if (!entries.length) {
+      list.append(Object.assign(document.createElement("li"), { textContent: "No broker statistics yet." }));
+      return;
+    }
+    for (const [name, b] of entries) {
+      const li = document.createElement("li");
+      const nameEl = Object.assign(document.createElement("span"), { className: "name", textContent: name });
+      const [label, cls] = brokerLabel(b.state, clientConnected);
+      const stateEl = Object.assign(document.createElement("span"), { className: cls, textContent: label });
+      stateEl.title = `librdkafka state: ${b.state || "unknown"}`;
+      li.append(nameEl, stateEl);
+      list.append(li);
+    }
+  }
+
+  // ------------------------------------------------------------ tiles
+
+  function queueTiles(updates) {
+    for (const m of updates) pendingTiles.set(m.id, m);
+    if (pendingTiles.size > MAX_TILES * 3) {
+      // Backgrounded tab: keep only the newest updates; the next snapshot resyncs.
+      const keep = [...pendingTiles.entries()].slice(-MAX_TILES * 2);
+      pendingTiles.clear();
+      for (const [id, m] of keep) pendingTiles.set(id, m);
+    }
+    if (!tileFlushScheduled) {
+      tileFlushScheduled = true;
+      setTimeout(flushTiles, 100);   // setTimeout rather than rAF so background tabs keep up
+    }
+  }
+
+  function flushTiles() {
+    tileFlushScheduled = false;
+    const grid = $("tiles");
+    const fragment = document.createDocumentFragment();
+    for (const m of pendingTiles.values()) {
+      let el = tiles.get(m.id);
+      if (!el) {
+        el = document.createElement("span");
+        el.dataset.id = m.id;
+        tiles.set(m.id, el);
+        fragment.append(el);
+      }
+      const cls = `tile ${m.state === "first" ? "ok" : m.state}`;
+      if (el.className !== cls) el.className = cls;
+      el.title = tileTitle(m);
+    }
+    pendingTiles.clear();
+    grid.append(fragment);
+    while (tiles.size > MAX_TILES && grid.firstElementChild) {
+      const first = grid.firstElementChild;
+      tiles.delete(first.dataset.id);
+      first.remove();
+    }
+    $("tiles-empty").hidden = tiles.size > 0;
+  }
+
+  function buildLegend() {
+    const ul = $("legend");
+    ul.replaceChildren();
+    for (const [state, label] of view.legend) {
+      const li = document.createElement("li");
+      li.append(Object.assign(document.createElement("span"), { className: `tile ${state}` }), label);
+      ul.append(li);
+    }
+  }
+
+  // ------------------------------------------------------------ timeline
+
+  function addTimeline(entry) {
+    const list = $("timeline");
+    const li = document.createElement("li");
+    li.dataset.kind = entry.kind;
+    const time = document.createElement("time");
+    time.dateTime = new Date(entry.ts).toISOString();
+    time.textContent = fmtTime(entry.ts);
+    li.append(time, Object.assign(document.createElement("span"), { textContent: entry.text }));
+    list.prepend(li);
+    while (list.children.length > MAX_TIMELINE) list.lastElementChild.remove();
+  }
+
+  // ------------------------------------------------------------ snapshot
+
+  function applySnapshot(d) {
+    client = d.client;
+    view = ROLE_VIEW[client.role] || ROLE_VIEW.producer;
+    skew = d.server_time - Date.now();
+    lastShownState = null;
+
+    const role = client.role === "consumer" ? "Consumer" : "Producer";
+    setText($("client-name"), client.client_id);
+    const verb = client.role === "consumer" ? "reading from" : "writing to";
+    setText($("client-desc"), `${role} with the ${client.profile} profile, ${verb} ${client.topic} through the gateway`);
+    $("controls").hidden = client.role !== "producer";
+    setText($("tiles-title"), view.tilesTitle);
+    setText($("tiles-empty"), view.empty);
+    buildLegend();
+    buildFigures();
+
+    const settings = $("settings");
+    settings.replaceChildren();
+    for (const [key, value] of Object.entries(client.settings || {})) {
+      const row = document.createElement("div");
+      row.append(
+        Object.assign(document.createElement("dt"), { textContent: key }),
+        Object.assign(document.createElement("dd"), { textContent: fmtSetting(key, value) }),
+      );
+      settings.append(row);
+    }
+
+    tiles.clear();
+    pendingTiles.clear();
+    $("tiles").replaceChildren();
+    for (const m of d.messages) pendingTiles.set(m.id, m);
+    flushTiles();
+
+    $("timeline").replaceChildren();
+    for (const entry of d.timeline) addTimeline(entry);
+
+    conn = d.connection;
+    applyMetrics(d.metrics);
+  }
+
+  // ------------------------------------------------------------ event stream
+
+  function setUiLink(live) {
+    const el = $("ui-link");
+    el.dataset.state = live ? "live" : "lost";
+    setText($("ui-link-text"), live ? "App reachable, live updates on" : "Can't reach the app, reconnecting");
+  }
+
+  function handle(env) {
+    if (typeof env.ts === "number") skew = env.ts - Date.now();
+    switch (env.type) {
+      case "snapshot": applySnapshot(env.data); break;
+      case "connection": conn = env.data; renderBand(); break;
+      case "metrics": if (client) applyMetrics(env.data); break;
+      case "messages": queueTiles(env.data.updates || []); break;
+      case "timeline": addTimeline(env.data); break;
+    }
+  }
+
+  const events = new EventSource("api/events");
+  events.onopen = () => setUiLink(true);
+  events.onerror = () => setUiLink(false);   // EventSource reconnects by itself
+  events.onmessage = (e) => {
+    let env;
+    try { env = JSON.parse(e.data); } catch { return; }
+    handle(env);
+  };
+
+  setInterval(() => { if (conn) renderBand(); }, 250);
+
+  // ------------------------------------------------------------ controls
+
+  function showNote(text) { setText($("control-note"), text); }
+
+  async function post(path, body) {
+    try {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      showNote(`The app didn't respond (${err.message}). Try again in a moment.`);
+      return null;
+    }
+  }
+
+  async function send(count) {
+    const result = await post(`api/send?count=${count}`);
+    if (!result) return;
+    showNote(result.refused
+      ? `${result.refused} of ${result.requested} messages were refused because the send buffer is full.`
+      : "");
+  }
+
+  $("send-one").addEventListener("click", () => send(1));
+  $("send-many").addEventListener("click", () => send(100));
+
+  $("rate").addEventListener("input", (e) => {
+    rateDragging = true;
+    const rate = Number(e.target.value);
+    setText($("rate-value"), String(rate));
+    clearTimeout(rateDebounce);
+    rateDebounce = setTimeout(() => post("api/rate", { rate }), 250);
+  });
+  $("rate").addEventListener("change", () => { rateDragging = false; });
+})();
+</script>
+</body>
+</html>

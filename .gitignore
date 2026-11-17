@@ -5,3 +5,6 @@ workspace
 .DS_Store
 
 client.properties
+# Committed UDF jars for the demos
+!demo/*/tools-udf/target/
+!demo/*/tools-udf/target/*.jar

@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluent Gateway Failover Demo</title>
+<style>
+  :root {
+    --bg: #e9eef2;
+    --surface: #f7f9fb;
+    --ink: #18222d;
+    --muted: #56636f;
+    --line: #c9d2da;
+    --ok: #1e8e5a;
+    --wait: #c98a00;
+    --wait-ink: #845900;
+    --fail: #c23b2e;
+    --read: #2f64c8;
+    --idle: #9aa7b3;
+    --ok-tint: #dbeee4;
+    --wait-tint: #f6e8c8;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11171d;
+      --surface: #19222b;
+      --ink: #e2e8ed;
+      --muted: #94a1ad;
+      --line: #2c3742;
+      --ok: #3cb97e;
+      --wait: #e5a520;
+      --wait-ink: #f0bd4a;
+      --fail: #e5594c;
+      --read: #6493ec;
+      --idle: #4c5a68;
+      --ok-tint: #16301f;
+      --wait-tint: #382c10;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.4 "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .page { max-width: 1500px; margin: 0 auto; padding: 16px clamp(12px, 2vw, 28px) 32px; }
+
+  /* Shared header */
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; margin-bottom: 8px; }
+  h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .links { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 0 auto; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
+  .links li { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); flex: none; }
+  .links [data-state="live"] .dot { background: var(--ok); }
+  .links [data-state="lost"] .dot { background: var(--fail); }
+  .links [data-state="lost"] { color: var(--fail); }
+
+  .cluster { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding: 10px 16px; margin-bottom: 16px; background: var(--surface); border-radius: 8px; font-size: 0.875rem; }
+  .cluster h2 { font-size: 0.875rem; font-weight: 600; margin: 0 6px 0 0; display: inline; }
+  .cluster .group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .cluster .muted { color: var(--muted); }
+  .chip { display: inline-flex; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; }
+  .chip.up { border-color: var(--ok); }
+  .chip.up .state { color: var(--ok); font-weight: 600; }
+  .chip.down { border-color: var(--wait); }
+  .chip.down .state { color: var(--wait-ink); font-weight: 600; }
+  .chip .state { color: var(--muted); }
+  .chip.split { border-color: var(--read); }
+  .chip.split .state { color: var(--read); font-weight: 600; }
+
+  /* Panels */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  @media (min-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1700px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .panel { background: var(--surface); border-radius: 10px; padding: 14px 16px 16px; min-width: 0; border-top: 6px solid var(--idle); }
+  .panel[data-state="connected"], .panel[data-state="recovered"] { border-top-color: var(--ok); }
+  .panel[data-state="retrying"] { border-top-color: var(--wait); }
+  .panel[data-state="problem"] { border-top-color: var(--fail); }
+  .panel[data-link="lost"] { opacity: 0.85; }
+
+  .p-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+  .p-name { font-size: 1.05rem; font-weight: 650; margin: 0; }
+  .p-desc { font-size: 0.8rem; color: var(--muted); }
+  .p-link { margin-left: auto; font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .panel[data-link="live"] .p-link .dot { background: var(--ok); }
+  .panel[data-link="lost"] .p-link .dot { background: var(--fail); }
+  .panel[data-link="lost"] .p-link { color: var(--fail); }
+
+  .band { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 14px; margin: 12px 0; padding: 12px 14px; border-radius: 8px; background: var(--bg); transition: background-color 300ms ease; }
+  .panel[data-state="recovered"] .band { background: var(--ok-tint); }
+  .panel[data-state="retrying"] .band { background: var(--wait-tint); }
+  .lamp { width: 34px; height: 34px; border-radius: 50%; background: var(--idle); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.14); }
+  .panel[data-state="connected"] .lamp, .panel[data-state="recovered"] .lamp { background: var(--ok); }
+  .panel[data-state="retrying"] .lamp { background: var(--wait); animation: halo 1.6s ease-out infinite; }
+  .panel[data-state="problem"] .lamp { background: var(--fail); }
+  @keyframes halo {
+    0%   { box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.14), 0 0 0 0 color-mix(in srgb, var(--wait) 60%, transparent); }
+    100% { box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.14), 0 0 0 14px transparent; }
+  }
+  .b-title { font-size: 1.15rem; font-weight: 650; line-height: 1.15; margin: 0; }
+  .b-detail { margin: 2px 0 0; font-size: 0.78rem; color: var(--muted); }
+  .timer { text-align: right; }
+  .t-value { display: block; font-size: 1.9rem; font-weight: 650; line-height: 1; letter-spacing: -0.02em; }
+  .t-caption { display: block; margin-top: 2px; font-size: 0.7rem; color: var(--muted); }
+
+  .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .figure { display: flex; flex-direction: column; padding: 8px 8px 8px 0; }
+  .figure + .figure { padding-left: 10px; border-left: 1px solid var(--line); }
+  .figure dd { order: 1; margin: 0; font-size: 1.35rem; font-weight: 600; line-height: 1.1; }
+  .figure dt { order: 2; font-size: 0.72rem; color: var(--muted); }
+  .figure.warn dd, .figure.waiting dd { color: var(--wait-ink); }
+  .figure.alert dd { color: var(--fail); }
+
+  .tiles { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; padding: 10px; height: 96px; overflow: hidden; background: var(--bg); border-radius: 6px; }
+  .tile { width: 10px; height: 10px; border-radius: 2px; background: var(--idle); }
+  .tile.queued { background: transparent; box-shadow: inset 0 0 0 2px var(--wait); }
+  .tile.acked { background: var(--ok); }
+  .tile.failed, .tile.gap { background: var(--fail); }
+  .tile.ok { background: var(--read); }
+  .tile.duplicate { background: var(--wait); }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 14px; list-style: none; padding: 0; margin: 8px 0 0; font-size: 0.72rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .band { transition: none; }
+    .lamp { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1 id="page-title">Confluent Gateway Failover Demo</h1>
+    <ul class="links" id="links"></ul>
+  </header>
+
+  <section class="cluster" id="cluster" aria-label="Cluster and brokers">
+    <div class="group"><h2>Cluster</h2><span id="cluster-ids" class="muted">not known yet</span></div>
+    <div class="group"><h2>Brokers</h2><span id="brokers" class="muted">no broker statistics yet</span></div>
+  </section>
+
+  <main class="grid" id="grid"></main>
+</div>
+
+<script src="ports.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  // The four clients, same ports as run.sh. They are reached directly from the
+  // browser on the same host that served this page. Override the host with
+  // ?host=name, and a port with ?producer-tuned=9001 and so on. Default ports come
+  // from ports.js, which run-dashboard.sh generates from .env.
+  const params = new URLSearchParams(location.search);
+  const HOST = params.get("host") || location.hostname;
+  const CLIENTS = [
+    { name: "producer-tuned",   role: "producer", port: 8081 },
+    { name: "producer-fragile", role: "producer", port: 8082 },
+    { name: "consumer-1",       role: "consumer", port: 8083 },
+    { name: "consumer-2",       role: "consumer", port: 8084 },
+  ].map((c) => ({ ...c, port: Number(params.get(c.name)) || (window.DEMO_PORTS || {})[c.name] || c.port }));
+
+  const MAX_TILES = 400;
+  const RECOVERED_FLASH_MS = 10000;
+
+  const ROLE_VIEW = {
+    producer: {
+      figures: [["pending", "Waiting"], ["acked", "Delivered"], ["failed", "Failed"], ["buffer_full", "Refused"]],
+      legend: [["queued", "Waiting to send"], ["acked", "Delivered"], ["failed", "Failed"]],
+    },
+    consumer: {
+      figures: [["consumed", "Received"], ["missing", "Missing"], ["duplicates", "Dupes"], ["rebalances", "Rebalances"]],
+      legend: [["ok", "In order"], ["gap", "After a gap"], ["duplicate", "Duplicate"]],
+    },
+  };
+  const STATE_LABEL = {
+    queued: "waiting to send", acked: "delivered", failed: "failed",
+    ok: "received in order", first: "received", gap: "arrived after a gap", duplicate: "duplicate or replay",
+  };
+  const ALERT_KEYS = new Set(["failed", "missing"]);
+  const WARN_KEYS = new Set(["buffer_full", "duplicates"]);
+
+  const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+  const el = (tag, props, ...kids) => {
+    const e = Object.assign(document.createElement(tag), props || {});
+    e.append(...kids);
+    return e;
+  };
+
+  function fmtClock(ms) {
+    const tenths = Math.floor(Math.max(0, ms) / 100);
+    const minutes = Math.floor(tenths / 600);
+    const seconds = ((tenths % 600) / 10).toFixed(1).padStart(4, "0");
+    return `${minutes}:${seconds}`;
+  }
+  const fmtSeconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
+  const fmtCount = (n) => Number(n || 0).toLocaleString();
+
+  // ------------------------------------------------------------ one panel per client
+
+  class Panel {
+    constructor(spec) {
+      this.spec = spec;
+      this.base = `${location.protocol}//${HOST}:${spec.port}`;
+      this.view = ROLE_VIEW[spec.role];
+      this.client = null;
+      this.conn = null;
+      this.skew = 0;
+      this.linkLive = null;
+      this.brokers = {};
+      this.tiles = new Map();
+      this.pending = new Map();
+      this.flushScheduled = false;
+      this.lastState = null;
+      this.build();
+      this.connect();
+    }
+
+    q(sel) { return this.root.querySelector(sel); }
+
+    build() {
+      const { spec, view } = this;
+      const root = document.createElement("section");
+      root.className = "panel";
+      root.dataset.state = "connecting";
+      root.dataset.link = "pending";
+      root.innerHTML = `
+        <div class="p-head">
+          <h2 class="p-name"></h2>
+          <span class="p-desc"></span>
+          <span class="p-link"><span class="dot" aria-hidden="true"></span><span class="p-link-text">Connecting to the app</span></span>
+        </div>
+        <div class="band">
+          <div class="lamp" aria-hidden="true"></div>
+          <div><h3 class="b-title" aria-live="polite">Connecting to Kafka</h3><p class="b-detail"></p></div>
+          <div class="timer" hidden><span class="t-value"></span><span class="t-caption"></span></div>
+        </div>
+        <dl class="figures"></dl>
+        <div class="tiles"></div>
+        <ul class="legend"></ul>`;
+      this.root = root;
+      setText(this.q(".p-name"), spec.name);
+      setText(this.q(".p-desc"), spec.role === "producer" ? "Producer" : "Consumer");
+      const dl = this.q(".figures");
+      for (const [key, label] of view.figures) {
+        const fig = el("div", { className: "figure" }, el("dt", { textContent: label }), el("dd", { textContent: "0" }));
+        fig.dataset.key = key;
+        dl.append(fig);
+      }
+      const legend = this.q(".legend");
+      for (const [state, label] of view.legend) {
+        legend.append(el("li", {}, el("span", { className: `tile ${state}` }), label));
+      }
+      document.getElementById("grid").append(root);
+    }
+
+    connect() {
+      const es = new EventSource(`${this.base}/api/events`);
+      es.onopen = () => this.setLink(true);
+      es.onerror = () => this.setLink(false);   // EventSource reconnects by itself
+      es.onmessage = (e) => {
+        let env;
+        try { env = JSON.parse(e.data); } catch { return; }
+        this.handle(env);
+      };
+    }
+
+    setLink(live) {
+      if (this.linkLive === live) return;
+      this.linkLive = live;
+      this.root.dataset.link = live ? "live" : "lost";
+      setText(this.q(".p-link-text"), live ? "Live" : "Can't reach the app, reconnecting");
+      renderLinks();
+    }
+
+    serverNow() { return Date.now() + this.skew; }
+
+    handle(env) {
+      if (typeof env.ts === "number") this.skew = env.ts - Date.now();
+      switch (env.type) {
+        case "snapshot": this.applySnapshot(env.data); break;
+        case "connection": this.conn = env.data; this.renderBand(); renderCluster(); break;
+        case "metrics": if (this.client) this.applyMetrics(env.data); break;
+        case "messages": this.queueTiles(env.data.updates || []); break;
+        // "timeline" events are not shown on this page
+      }
+    }
+
+    applySnapshot(d) {
+      this.client = d.client;
+      this.skew = d.server_time - Date.now();
+      this.lastState = null;
+      setText(this.q(".p-name"), d.client.client_id);
+      setTopic(d.client.topic);
+      const verb = d.client.role === "consumer" ? "reading" : "writing";
+      setText(this.q(".p-desc"), `${d.client.profile} profile, ${verb} ${d.client.topic}`);
+
+      this.tiles.clear();
+      this.pending.clear();
+      this.q(".tiles").replaceChildren();
+      for (const m of d.messages) this.pending.set(m.id, m);
+      this.flushTiles();
+
+      this.conn = d.connection;
+      this.applyMetrics(d.metrics);
+    }
+
+    // ---- band
+    displayState() {
+      const c = this.conn;
+      if (!c) return "connecting";
+      if (c.state === "connected" && c.last_outage_ms != null && this.serverNow() - c.since < RECOVERED_FLASH_MS) return "recovered";
+      return c.state;
+    }
+
+    renderBand() {
+      const c = this.conn;
+      let s = this.displayState();
+      if ((s === "connected" || s === "recovered") && c.topic_problem) s = "problem";
+      this.root.dataset.state = s;
+      let title, detail, timerValue = null, caption = "";
+      if (s === "connecting") {
+        title = "Connecting to Kafka"; detail = "Waiting for the first response.";
+      } else if (s === "connected") {
+        title = "Connected";
+        detail = c.probe_latency_ms != null ? `Round trip ${c.probe_latency_ms} ms` : "";
+      } else if (s === "problem") {
+        title = "Topic isn't usable"; detail = c.topic_problem;
+      } else if (s === "recovered") {
+        title = "Back online";
+        detail = `Reconnected after ${fmtSeconds(c.last_outage_ms)}`;
+        timerValue = fmtClock(c.last_outage_ms); caption = "total outage";
+      } else {
+        const n = c.attempts || 0;
+        title = "Waiting for Kafka";
+        detail = `${n} attempt${n === 1 ? "" : "s"}${c.last_error ? `. ${c.last_error}` : ""}`;
+        timerValue = fmtClock(this.serverNow() - c.outage_started); caption = "without Kafka";
+      }
+      setText(this.q(".b-title"), title);
+      setText(this.q(".b-detail"), detail);
+      const timer = this.q(".timer");
+      timer.hidden = timerValue == null;
+      if (timerValue != null) {
+        setText(this.q(".t-value"), timerValue);
+        setText(this.q(".t-caption"), caption);
+      }
+      if (s !== this.lastState) { this.lastState = s; renderTitle(); }
+    }
+
+    // ---- figures
+    applyMetrics(m) {
+      this.conn = m.connection;
+      const counters = m.counters;
+      for (const fig of this.root.querySelectorAll(".figure")) {
+        const key = fig.dataset.key;
+        setText(fig.querySelector("dd"), fmtCount(counters[key]));
+        fig.classList.toggle("alert", ALERT_KEYS.has(key) && counters[key] > 0);
+        fig.classList.toggle("warn", WARN_KEYS.has(key) && counters[key] > 0);
+        fig.classList.toggle("waiting", key === "pending" && counters[key] > 0 && this.conn.state !== "connected");
+      }
+      this.brokers = m.brokers || {};
+      this.renderBand();
+      renderCluster();
+    }
+
+    // ---- tiles
+    tileTitle(m) {
+      const label = STATE_LABEL[m.state] || m.state;
+      if (this.spec.role === "consumer") {
+        return `Message ${m.seq} from ${m.producer_id} on partition ${m.partition}: ${label} (offset ${m.offset})`;
+      }
+      let text = m.partition != null ? `Message ${m.seq} on partition ${m.partition}: ${label}` : `Message ${m.seq}: ${label}`;
+      if (m.state === "acked") text += ` (offset ${m.offset})`;
+      if (m.error) text += `. ${m.error}`;
+      return text;
+    }
+
+    queueTiles(updates) {
+      for (const m of updates) this.pending.set(m.id, m);
+      if (this.pending.size > MAX_TILES * 3) {
+        const keep = [...this.pending.entries()].slice(-MAX_TILES * 2);
+        this.pending.clear();
+        for (const [id, m] of keep) this.pending.set(id, m);
+      }
+      if (!this.flushScheduled) {
+        this.flushScheduled = true;
+        setTimeout(() => this.flushTiles(), 100);   // not rAF, so background tabs keep up
+      }
+    }
+
+    flushTiles() {
+      this.flushScheduled = false;
+      const grid = this.q(".tiles");
+      const fragment = document.createDocumentFragment();
+      for (const m of this.pending.values()) {
+        let t = this.tiles.get(m.id);
+        if (!t) {
+          t = document.createElement("span");
+          t.dataset.id = m.id;
+          this.tiles.set(m.id, t);
+          fragment.append(t);
+        }
+        const cls = `tile ${m.state === "first" ? "ok" : m.state}`;
+        if (t.className !== cls) t.className = cls;
+        t.title = this.tileTitle(m);
+      }
+      this.pending.clear();
+      grid.append(fragment);
+      while (this.tiles.size > MAX_TILES && grid.firstElementChild) {
+        const first = grid.firstElementChild;
+        this.tiles.delete(first.dataset.id);
+        first.remove();
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ shared header
+
+  const panels = CLIENTS.map((c) => new Panel(c));
+
+  function renderLinks() {
+    const ul = document.getElementById("links");
+    ul.replaceChildren(...panels.map((p) => {
+      const state = p.linkLive == null ? "pending" : p.linkLive ? "live" : "lost";
+      const li = el("li", {}, el("span", { className: "dot" }), `${p.spec.name} :${p.spec.port}`);
+      li.dataset.state = state;
+      li.title = state === "live" ? "Page is receiving live updates" : state === "lost" ? "Can't reach this client's UI port" : "Connecting";
+      return li;
+    }));
+  }
+
+  // Cluster IDs as each client sees them. A switchover shows up here as the ID
+  // changing, or as clients disagreeing for a moment.
+  function renderCluster() {
+    const byId = new Map();
+    for (const p of panels) {
+      const id = p.conn && p.conn.cluster_id;
+      if (!id) continue;
+      if (!byId.has(id)) byId.set(id, []);
+      byId.get(id).push(p.spec.name);
+    }
+    const idsEl = document.getElementById("cluster-ids");
+    if (!byId.size) {
+      setText(idsEl, "not known yet");
+      idsEl.className = "muted";
+    } else {
+      idsEl.className = "group";
+      const split = byId.size > 1;
+      const sig = [...byId].map(([id, names]) => `${id}:${names.join(",")}`).join("|");
+      if (idsEl.dataset.sig !== sig) {
+        idsEl.dataset.sig = sig;
+        idsEl.replaceChildren(...[...byId].map(([id, names]) => {
+          const chip = el("span", { className: `chip ${split ? "split" : "up"}` }, id, el("span", { className: "state", textContent: split ? names.join(", ") : `${names.length} of ${panels.length} clients` }));
+          return chip;
+        }));
+      }
+    }
+
+    // Brokers: union of what the clients report. A client counts as "using" a
+    // broker while librdkafka has a connection to it in state UP.
+    const names = new Set();
+    for (const p of panels) for (const n of Object.keys(p.brokers)) names.add(n);
+    const brokersEl = document.getElementById("brokers");
+    if (!names.size) {
+      setText(brokersEl, "no broker statistics yet");
+      brokersEl.className = "muted";
+      return;
+    }
+    const rows = [...names].sort().map((n) => {
+      let up = 0, reporting = 0;
+      for (const p of panels) {
+        const b = p.brokers[n];
+        if (!b) continue;
+        reporting++;
+        if (b.state === "UP" || b.state === "UPDATE") up++;
+      }
+      return { n, up, reporting };
+    });
+    const sig = rows.map((r) => `${r.n}=${r.up}/${r.reporting}`).join("|");
+    if (brokersEl.dataset.sig === sig) return;
+    brokersEl.dataset.sig = sig;
+    brokersEl.className = "group";
+    brokersEl.replaceChildren(...rows.map((r) => {
+      // Idle is normal: librdkafka only keeps the connections it needs.
+      const cls = r.up > 0 ? "up" : "";
+      return el("span", { className: `chip ${cls}`, title: "Clients with an open connection to this broker" },
+        r.n, el("span", { className: "state", textContent: `${r.up} of ${r.reporting} connected` }));
+    }));
+  }
+
+  // The topic comes from the clients' snapshots; all four use the same one.
+  let topic = null;
+  function baseTitle() {
+    return topic ? `Confluent Gateway Failover Demo - Topic: ${topic}` : "Confluent Gateway Failover Demo";
+  }
+  function setTopic(t) {
+    if (!t || t === topic) return;
+    topic = t;
+    setText(document.getElementById("page-title"), baseTitle());
+    renderTitle();
+  }
+
+  function renderTitle() {
+    const states = panels.map((p) => p.root.dataset.state);
+    const out = states.filter((s) => s === "retrying").length;
+    document.title = out ? `${baseTitle()} (${out} of ${panels.length} waiting)` : baseTitle();
+  }
+
+  renderLinks();
+  setInterval(() => { for (const p of panels) if (p.conn) p.renderBand(); }, 250);
+})();
+</script>
+</body>
+</html>

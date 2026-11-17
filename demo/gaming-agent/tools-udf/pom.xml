@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.confluent.gamingdemo</groupId>
+    <artifactId>gaming-tools</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Gaming Offer Agent Tools</name>
+    <description>
+        Flink UDFs exposed as Streaming Agent tools (get_offer_catalog, check_offer_eligibility,
+        create_offer). Mock tools: the catalog is built into the JAR and create_offer has no real side
+        effect, but they are genuinely invoked by the agent during tool-calling.
+    </description>
+
+    <properties>
+        <!-- Confluent Cloud for Apache Flink runs Java 11-17 UDFs. Compile for 11 whatever JDK builds
+             this (JDK 17 or 21 both work with the release flag set to 11). Do not use Java 12+ APIs/features. -->
+        <maven.compiler.release>11</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <flink.version>1.19.1</flink.version>
+    </properties>
+
+    <dependencies>
+        <!-- ScalarFunction lives here; provided by the Flink runtime, not bundled. -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-common</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>gaming-tools</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

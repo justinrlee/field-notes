@@ -1,0 +1,16 @@
+# Local apps (producer + dashboard + fraud-trigger UI) that talk to Confluent Cloud.
+# All stream processing / the agent runs in Confluent Cloud (see terraform/).
+confluent-kafka[schemaregistry,avro]
+fastavro
+python-dotenv
+streamlit
+altair
+pandas
+
+# fraud-trigger
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+jinja2==3.1.4
+# confluent-kafka[avro]==2.6.1
+# python-dotenv==1.0.1
+

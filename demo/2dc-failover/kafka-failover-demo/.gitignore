@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.DS_Store
+.env
+phase*-results/
+phase*-results.tgz
+logs/
